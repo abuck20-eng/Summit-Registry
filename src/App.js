@@ -13,32 +13,31 @@ const DOUBLE_TAP_MS  = 300;
 const displayName = (log) => log.name || (log.is_gym ? "Plastic" : "unnamed");
 const gradeSort = (grade, discipline) => discipline === "route" ? (ROUTE_SORT[grade]||0) : (BOULDER_SORT[grade]||0);
 
-function GradeSlider({ grades, value, onChange, active }) {
+function GradeSlider({ grades, value, onChange }) {
   const [localIdx, setLocalIdx] = useState(Math.floor(grades.length / 2));
   const trackRef = useRef(null);
   const dragging = useRef(false);
   const localIdxRef = useRef(localIdx);
   useEffect(() => { if (!value) setLocalIdx(Math.floor(grades.length / 2)); }, [value, grades]);
   const getIdx = (clientX) => { const rect = trackRef.current.getBoundingClientRect(); return Math.round(Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * (grades.length - 1)); };
-  const onDown = (e) => { if (!active) return; dragging.current = true; trackRef.current.setPointerCapture(e.pointerId); const i = getIdx(e.clientX); localIdxRef.current = i; setLocalIdx(i); onChange(grades[i]); };
+  const onDown = (e) => { dragging.current = true; trackRef.current.setPointerCapture(e.pointerId); const i = getIdx(e.clientX); localIdxRef.current = i; setLocalIdx(i); onChange(grades[i]); };
   const onMove = (e) => { if (!dragging.current) return; const i = getIdx(e.clientX); if (i !== localIdxRef.current) { localIdxRef.current = i; setLocalIdx(i); onChange(grades[i]); } };
   const onUp = () => { dragging.current = false; };
   const di = value ? grades.indexOf(value) : localIdx;
   const pct = (di / (grades.length - 1)) * 100;
-  const trackColor = active ? (value ? "#f0ede8" : "#3a3a3a") : "#1c1c1c";
   return (
-    <div style={{ padding:"0 24px", userSelect:"none", opacity: active ? 1 : 0.3, transition:"opacity 0.2s" }}>
+    <div style={{ padding:"0 24px", userSelect:"none" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-        <span style={{ fontSize:11, color: active ? "#666" : "#2a2a2a", letterSpacing:"0.1em" }}>{grades[0]}</span>
-        <span style={{ fontSize:34, fontWeight:700, color: value ? "#f0ede8" : (active ? "#555" : "#222"), transition:"color 0.12s" }}>{value || "—"}</span>
-        <span style={{ fontSize:11, color: active ? "#666" : "#2a2a2a", letterSpacing:"0.1em" }}>{grades[grades.length-1]}</span>
+        <span style={{ fontSize:11, color:"#555", letterSpacing:"0.1em" }}>{grades[0]}</span>
+        <span style={{ fontSize:34, fontWeight:700, color: value ? "#f0ede8" : "#3a3a3a", transition:"color 0.12s" }}>{value || "—"}</span>
+        <span style={{ fontSize:11, color:"#555", letterSpacing:"0.1em" }}>{grades[grades.length-1]}</span>
       </div>
       <div ref={trackRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
-        style={{ position:"relative", height:52, display:"flex", alignItems:"center", cursor: active ? "pointer" : "default", touchAction:"none" }}>
+        style={{ position:"relative", height:52, display:"flex", alignItems:"center", cursor:"pointer", touchAction:"none" }}>
         <div style={{ position:"absolute", left:0, right:0, height:2, background:"#1c1c1c", borderRadius:1 }} />
-        <div style={{ position:"absolute", left:0, width:`${pct}%`, height:2, background: trackColor, borderRadius:1, transition:"background 0.2s" }} />
-        {grades.map((_,i) => (<div key={i} style={{ position:"absolute", left:`${(i/(grades.length-1))*100}%`, transform:"translateX(-50%)", width:i===di?2:1, height:i===di?12:5, background:i===di?(active?"#f0ede8":"#333"):"#252525", bottom:10, borderRadius:1 }} />))}
-        <div style={{ position:"absolute", left:`${pct}%`, transform:"translateX(-50%)", width:26, height:26, borderRadius:"50%", background: value?(active?"#f0ede8":"#333"):"#1c1c1c", border:`2px solid ${value?(active?"#f0ede8":"#333"):"#2e2e2e"}`, boxShadow: active && value?"0 0 0 5px rgba(240,237,232,0.08)":"none", transition:"all 0.2s" }} />
+        <div style={{ position:"absolute", left:0, width:`${pct}%`, height:2, background:value?"#f0ede8":"#2a2a2a", borderRadius:1 }} />
+        {grades.map((_,i) => (<div key={i} style={{ position:"absolute", left:`${(i/(grades.length-1))*100}%`, transform:"translateX(-50%)", width:i===di?2:1, height:i===di?12:5, background:i===di?"#f0ede8":"#252525", bottom:10, borderRadius:1 }} />))}
+        <div style={{ position:"absolute", left:`${pct}%`, transform:"translateX(-50%)", width:26, height:26, borderRadius:"50%", background:value?"#f0ede8":"#1c1c1c", border:`2px solid ${value?"#f0ede8":"#333"}`, boxShadow:value?"0 0 0 5px rgba(240,237,232,0.08)":"none", transition:"background 0.12s, border-color 0.12s" }} />
       </div>
     </div>
   );
@@ -59,7 +58,7 @@ function ZapOverlay({ active }) {
   );
 }
 
-function SentButton({ disabled, onSent, onFirstGo, lit }) {
+function SentButton({ disabled, onSent, onFirstGo }) {
   const lastTap = useRef(0);
   const tapTimer = useRef(null);
   const [armed, setArmed] = useState(false);
@@ -71,7 +70,7 @@ function SentButton({ disabled, onSent, onFirstGo, lit }) {
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
-    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#7ecf82" : "#4caf50", color:"#fff", opacity: disabled ? 0.2 : 1, transform: armed ? "scale(0.97)" : "scale(1)", position:"relative", overflow:"hidden", transition:"background 0.1s, opacity 0.2s, transform 0.08s", boxShadow: lit ? "0 0 0 2px #4caf50, 0 0 20px rgba(76,175,80,0.3)" : "none" }}>
+    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#7ecf82" : "#4caf50", color:"#fff", opacity: disabled ? 0.25 : 1, transform: armed ? "scale(0.97)" : "scale(1)", position:"relative", overflow:"hidden", transition:"background 0.1s, opacity 0.12s, transform 0.08s" }}>
       {armed ? "⚡ ?" : "SENT"}
       {armed && <span style={{ position:"absolute", bottom:6, left:0, right:0, fontSize:9, color:"rgba(255,255,255,0.6)", letterSpacing:"0.1em", textAlign:"center" }}>tap again for first go</span>}
     </button>
@@ -136,6 +135,7 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
     <div style={S.overlay} onClick={onDismiss}>
       <div style={{ ...S.sheet, position:"relative" }} onClick={e => e.stopPropagation()}>
         <div style={S.sheetHandle} />
+        {/* Outcome toggle */}
         <div style={{ display:"flex", gap:8, marginBottom:20 }}>
           {["sent","project","repeat"].map(o => (
             <button key={o} onClick={() => setOutcome(o)} style={{
@@ -147,6 +147,8 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
             }}>{o.toUpperCase()}</button>
           ))}
         </div>
+
+        {/* Name row — pencil right next to the name */}
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:20 }}>
           <div style={{ flex:1, minWidth:0 }}>
             {editingName ? (
@@ -154,9 +156,9 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
                 onBlur={() => setEditingName(false)} onKeyDown={e => e.key==="Enter" && setEditingName(false)}
                 placeholder={entry.is_gym ? "Plastic" : "climb name"} />
             ) : (
-              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                 <span style={S.sheetTitle}>{name || (entry.is_gym ? "Plastic" : <em style={{color:"#555",fontStyle:"italic"}}>unnamed</em>)}</span>
-                <button onClick={() => setEditingName(true)} style={S.iconBtn}>✎</button>
+                <button onClick={() => setEditingName(true)} style={{ background:"none", border:"none", color:"#555", fontSize:14, cursor:"pointer", padding:"0 2px", fontFamily:"'DM Mono',monospace", lineHeight:1 }}>✎</button>
               </div>
             )}
           </div>
@@ -166,13 +168,14 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
                 <div style={{ fontSize:14, fontWeight:600, letterSpacing:"0.08em" }}>change grade</div>
                 <button onClick={() => setEditingGrade(false)} style={{ background:"none", border:"none", color:"#555", fontSize:20, cursor:"pointer", fontFamily:"inherit" }}>✕</button>
               </div>
-              <GradeSlider grades={grades} value={grade} onChange={setGrade} active={true} />
+              <GradeSlider grades={grades} value={grade} onChange={setGrade} />
               <button style={{...S.btnPrimary, width:"100%", marginTop:20}} onClick={() => setEditingGrade(false)}>done</button>
             </div>
           ) : (
             <button onClick={() => setEditingGrade(true)} style={S.gradeEditBtn}>{grade}</button>
           )}
         </div>
+
         {outcome === "sent" && (
           <div style={S.tagSection}>
             <div style={S.chipRow}><Chip label={firstGo ? "⚡ First go" : "⚡ First go?"} selected={firstGo} onToggle={() => setFirstGo(p=>!p)} accent="#a06010" /></div>
@@ -202,7 +205,8 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
   );
 }
 
-function LiveLogRow({ log, isNoteWindow, onTap }) {
+// ── Live Log Row — bright add details, pulsing new entry ──────────────────────
+function LiveLogRow({ log, isNoteWindow, onTap, isNew }) {
   const [progress, setProgress] = useState(100);
   const rafRef = useRef(null);
   const startRef = useRef(null);
@@ -213,30 +217,44 @@ function LiveLogRow({ log, isNoteWindow, onTap }) {
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [isNoteWindow]);
+
   const hasTags = log.angles?.length > 0 || log.styles?.length > 0;
   const hasAnything = hasTags || log.note || log.first_go;
   const showWindow = isNoteWindow && !hasAnything;
   const isSent = log.outcome === "sent";
   const isRepeat = log.outcome === "repeat";
+
   return (
-    <div style={S.logRowWrap}>
+    <div style={{ ...S.logRowWrap, animation: isNew ? "pulseRow 0.5s ease-out" : "none" }}>
+      <style>{`@keyframes pulseRow { 0%{background:#1a2a1a} 100%{background:transparent} }`}</style>
       <div style={S.logRow} onClick={onTap}>
         <div style={{ display:"flex", alignItems:"flex-start", gap:10, flex:1, minWidth:0 }}>
-          <span style={{ width:9, height:9, borderRadius:"50%", flexShrink:0, marginTop:5, display:"inline-block", background: isSent ? "#4caf50" : "transparent", border: isSent ? "none" : isRepeat ? "2px solid #4a9fd4" : "2px solid #e07820" }} />
+          <span style={{ width:9, height:9, borderRadius:"50%", flexShrink:0, marginTop:5, display:"inline-block",
+            background: isSent ? "#4caf50" : "transparent",
+            border: isSent ? "none" : isRepeat ? "2px solid #4a9fd4" : "2px solid #e07820" }} />
           <div style={{ minWidth:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
               <span style={S.logName}>{displayName(log)}</span>
               {log.first_go && <span style={{ fontSize:12, color:"#c07820" }}>⚡</span>}
             </div>
-            {log.note ? <div style={S.logMeta}>✎ {log.note.slice(0,42)}{log.note.length>42?"…":""}</div>
-              : hasTags ? <div style={S.logMeta}>{[...(log.angles||[]),...(log.styles||[])].join(" · ")}</div>
-              : showWindow ? <div style={S.addPromptActive}>+ add details · tap</div>
-              : <div style={S.addPromptFaded}>+ add details</div>}
+            {log.note
+              ? <div style={S.logMeta}>✎ {log.note.slice(0,42)}{log.note.length>42?"…":""}</div>
+              : hasTags
+                ? <div style={S.logMeta}>{[...(log.angles||[]),...(log.styles||[])].join(" · ")}</div>
+                : showWindow
+                  ? <div style={S.addPromptActive}>+ add details</div>
+                  : <div style={S.addPromptFaded}>+ add details</div>
+            }
           </div>
         </div>
         <span style={S.logGrade}>{log.grade}</span>
       </div>
-      {showWindow && <div style={{ height:2, background:"#181818", borderRadius:1 }}><div style={{ width:`${progress}%`, height:"100%", background:"#2e2e2e", borderRadius:1, transition:"width 0.08s linear" }} /></div>}
+      {/* Progress bar — bright and obvious when window is open */}
+      {showWindow && (
+        <div style={{ height:3, background:"#1a1a1a", borderRadius:2, margin:"0 0 2px" }}>
+          <div style={{ width:`${progress}%`, height:"100%", background:"#4caf50", borderRadius:2, transition:"width 0.08s linear", opacity:0.7 }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -256,7 +274,7 @@ function LogDetailRow({ log, onTap }) {
       </div>
       {hasTags && <div style={S.tagPills}>{[...(log.angles||[]),...(log.styles||[])].map(t => <span key={t} style={S.pill}>{t}</span>)}</div>}
       {log.note ? <div style={S.noteChip}>✎ {log.note}</div> : null}
-      {!hasTags && !log.note && !log.first_go && <div style={S.addChip}>+ add details</div>}
+      {!hasTags && !log.note && !log.first_go && <div style={S.addChipDetail}>+ add details</div>}
     </div>
   );
 }
@@ -276,6 +294,7 @@ export default function App({ user, onSignOut }) {
   const [location, setLocation] = useState("");
   const [climbName, setClimbName] = useState("");
   const [selectedGrade, setSelectedGrade] = useState(null);
+  const [justLoggedId, setJustLoggedId] = useState(null);
   const [justLogged, setJustLogged] = useState(null);
   const [noteWindowId, setNoteWindowId] = useState(null);
   const [sheetEntry, setSheetEntry] = useState(null);
@@ -289,17 +308,8 @@ export default function App({ user, onSignOut }) {
   const grades = discipline === "route" ? ROUTE_GRADES : BOULDER_GRADES;
   const isOutdoor = environment === "outdoor";
   const isGym = environment === "gym";
-
-  // Progressive flow steps
-  // Step 1: name (required outdoor, optional gym — gym skips straight to step 2)
-  // Step 2: grade selected
-  // Step 3: buttons lit
-  const nameReady = isGym ? true : climbName.trim().length > 0;
-  const gradeReady = nameReady && !!selectedGrade;
-  const buttonsLit = gradeReady;
-  const canLog = gradeReady && (!isOutdoor || climbName.trim());
-
-  const pastLocations = environment === "gym" ? gymLocations : outdoorLocations;
+  const canLog = selectedGrade && (!isOutdoor || climbName.trim());
+  const pastLocations = isGym ? gymLocations : outdoorLocations;
 
   useEffect(() => { loadSessions(); }, []);
 
@@ -323,10 +333,6 @@ export default function App({ user, onSignOut }) {
     const { data, error } = await supabase.from('sessions').insert({ user_id: user.id, location: loc, environment: env, discipline: disc }).select().single();
     if (error) { console.error(error); return null; }
     return data;
-  };
-
-  const finalizeSession = async (sessionId) => {
-    await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', sessionId);
   };
 
   const saveClimbToDb = async (sessionId, climbData) => {
@@ -365,16 +371,21 @@ export default function App({ user, onSignOut }) {
   const commitLog = async (outcome, firstGo = false) => {
     if (!canLog || !activeSession) return;
     const climbData = { name: climbName.trim()||null, grade: selectedGrade, outcome, first_go: firstGo, angles:[], styles:[], note:"", is_gym: isGym };
-    const tempEntry = { id:`temp-${Date.now()}`, ...climbData, logged_at: new Date().toISOString() };
+    const tempId = `temp-${Date.now()}`;
+    const tempEntry = { id: tempId, ...climbData, logged_at: new Date().toISOString() };
     setLogs(prev => [tempEntry,...prev]);
     setJustLogged(tempEntry);
+    setJustLoggedId(tempId);
     setClimbName(""); setSelectedGrade(null);
-    setTimeout(() => setJustLogged(null), 1800);
+    setTimeout(() => { setJustLogged(null); setJustLoggedId(null); }, 1800);
     clearTimeout(noteTimerRef.current);
-    setNoteWindowId(tempEntry.id);
+    setNoteWindowId(tempId);
     noteTimerRef.current = setTimeout(() => setNoteWindowId(null), NOTE_WINDOW_MS);
     const saved = await saveClimbToDb(activeSession.id, climbData);
-    if (saved) { setLogs(prev => prev.map(l => l.id===tempEntry.id ? {...saved, is_gym: isGym} : l)); setNoteWindowId(saved.id); }
+    if (saved) {
+      setLogs(prev => prev.map(l => l.id===tempId ? {...saved, is_gym: isGym} : l));
+      setNoteWindowId(saved.id);
+    }
   };
 
   const handleSent = () => commitLog("sent", false);
@@ -389,21 +400,18 @@ export default function App({ user, onSignOut }) {
     setLogs(prev => prev.map(updateLog));
     if (viewingSession) {
       const updated = {...viewingSession, logs: viewingSession.logs.map(updateLog)};
-      setViewingSession(updated);
-      setAllSessions(prev => prev.map(s => s.id===viewingSession.id ? updated : s));
+      setViewingSession(updated); setAllSessions(prev => prev.map(s => s.id===viewingSession.id ? updated : s));
     }
     if (!String(sheetEntry.id).startsWith('temp-')) await updateClimbInDb(sheetEntry.id, updates);
     setSheetSaving(false); setSheetEntry(null);
   };
 
   const deleteClimb = async () => {
-    const id = sheetEntry.id;
-    setSheetEntry(null);
+    const id = sheetEntry.id; setSheetEntry(null);
     setLogs(prev => prev.filter(l => l.id !== id));
     if (viewingSession) {
       const updated = {...viewingSession, logs: viewingSession.logs.filter(l => l.id !== id)};
-      setViewingSession(updated);
-      setAllSessions(prev => prev.map(s => s.id===viewingSession.id ? updated : s));
+      setViewingSession(updated); setAllSessions(prev => prev.map(s => s.id===viewingSession.id ? updated : s));
     }
     if (!String(id).startsWith('temp-')) await deleteClimbFromDb(id);
   };
@@ -423,10 +431,9 @@ export default function App({ user, onSignOut }) {
 
   const startSession = async () => {
     const loc = location.trim()||"Unknown";
-    const saved = await createSession(loc, environment, discipline);
-    if (!saved) return;
-    setActiveSession({...saved, startTime: saved.started_at});
-    setLogs([]); setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
+    const { data, error } = await supabase.from('sessions').insert({ user_id: user.id, location: loc, environment, discipline }).select().single();
+    if (error || !data) return;
+    setActiveSession(data); setLogs([]); setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
     setScreen("logging");
   };
 
@@ -440,11 +447,10 @@ export default function App({ user, onSignOut }) {
       setScreen("home"); return;
     }
     clearTimeout(noteTimerRef.current); setNoteWindowId(null);
-    await finalizeSession(activeSession.id);
+    await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
     const done = {...activeSession, logs, ended_at: new Date().toISOString()};
     setAllSessions(prev => [done,...prev.filter(s => s.id!==activeSession.id)]);
-    setActiveSession(null);
-    setViewingSession(done); setScreen("summary");
+    setActiveSession(null); setViewingSession(done); setScreen("summary");
   };
 
   const sends   = logs.filter(l => l.outcome==="sent");
@@ -531,7 +537,7 @@ export default function App({ user, onSignOut }) {
         <div style={S.pageContainer}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:40 }}>
             <button style={S.backBtn} onClick={() => {setViewingSession(null);setScreen("home");}}>←</button>
-            <button style={{ ...S.trashBtn, color:"#c0392b" }} onClick={() => setDeleteSessionTarget(s)}>✕ delete session</button>
+            <button style={{ ...S.trashBtn, color:"#c0392b", fontSize:12 }} onClick={() => setDeleteSessionTarget(s)}>✕ delete session</button>
           </div>
           <div style={S.pageTitle}>{s.location}</div>
           <div style={S.pageSubtitle}>{new Date(s.started_at).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
@@ -592,7 +598,7 @@ export default function App({ user, onSignOut }) {
 
         {/* Top bar */}
         <div style={S.topBar}>
-          <button style={S.topBarIconBtn} onClick={() => setScreen("home")} title="home">⌂</button>
+          <button style={S.topBarIconBtn} onClick={() => setScreen("home")}>⌂</button>
           <div style={{ flex:1, textAlign:"center", padding:"0 8px" }}>
             <div style={S.sessionLocation}>{activeSession?.location}</div>
             <div style={S.sessionMeta}>
@@ -602,79 +608,43 @@ export default function App({ user, onSignOut }) {
               {flashes.length > 0 && <span style={{color:"#c07820"}}> · {flashes.length} ⚡</span>}
             </div>
           </div>
-          <button style={S.topBarIconBtn} onClick={() => { setNewLocation(activeSession?.location||""); setEditingLocation(true); }} title="rename location">✎</button>
+          <button style={S.topBarIconBtn} onClick={() => { setNewLocation(activeSession?.location||""); setEditingLocation(true); }}>✎</button>
         </div>
 
-        {/* STEP 1 — Climb name */}
-        <div style={{ padding:"24px 24px 0" }}>
-          <div style={{ fontSize:10, letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8, color: nameReady ? "#888" : "#f0ede8", transition:"color 0.2s" }}>
-            {isOutdoor ? "① climb name — required" : "① climb name — optional"}
+        {/* Climb name — boxed, always visible, glows when active/focused */}
+        <div style={{ padding:"22px 24px 0" }}>
+          <div style={{ fontSize:10, color:"#666", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8 }}>
+            {isOutdoor ? "climb name — required" : "climb name — optional"}
           </div>
-          <div style={{
-            border: `1px solid ${nameReady ? "#2a2a2a" : "#444"}`,
-            borderRadius:6,
-            padding:"14px 16px",
-            background: nameReady ? "#111" : "#161616",
-            transition:"all 0.2s",
-            boxShadow: nameReady ? "none" : "0 0 0 1px #333",
-          }}>
-            <input
-              style={{ width:"100%", background:"transparent", border:"none", color:"#f0ede8", fontSize:18, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", caretColor:"#f0ede8" }}
-              placeholder={isOutdoor ? "e.g. Midnight Lightning" : "e.g. Techno Surfing (or skip)"}
-              value={climbName}
-              onChange={e => setClimbName(e.target.value)}
-            />
-          </div>
+          <input
+            style={S.nameInputBoxed}
+            placeholder={isOutdoor ? "e.g. Midnight Lightning" : "e.g. Techno Surfing"}
+            value={climbName}
+            onChange={e => setClimbName(e.target.value)}
+          />
         </div>
 
-        {/* STEP 2 — Grade */}
-        <div style={{ marginTop:28, opacity: nameReady ? 1 : 0.25, transition:"opacity 0.25s", pointerEvents: nameReady ? "auto" : "none" }}>
-          <div style={{ fontSize:10, color: gradeReady ? "#888" : (nameReady ? "#f0ede8" : "#444"), letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:12, paddingLeft:24, transition:"color 0.2s" }}>
-            ② grade
-          </div>
-          <div style={{
-            margin:"0 16px",
-            border: `1px solid ${gradeReady ? "#2a2a2a" : (nameReady ? "#444" : "#1e1e1e")}`,
-            borderRadius:8,
-            padding:"12px 0",
-            background: gradeReady ? "#111" : (nameReady ? "#161616" : "#0e0e0e"),
-            transition:"all 0.2s",
-            boxShadow: gradeReady ? "none" : nameReady ? "0 0 0 1px #333" : "none",
-          }}>
-            <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} active={nameReady} />
-          </div>
+        {/* Grade */}
+        <div style={{ padding:"24px 0 0" }}>
+          <div style={{ fontSize:10, color:"#666", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:12, paddingLeft:24 }}>grade</div>
+          <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} />
         </div>
 
-        {/* STEP 3 — Outcome buttons */}
-        <div style={{ marginTop:24, opacity: buttonsLit ? 1 : 0.2, transition:"opacity 0.25s", pointerEvents: buttonsLit ? "auto" : "none" }}>
-          <div style={{ fontSize:10, color: buttonsLit ? "#f0ede8" : "#444", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:10, paddingLeft:24, transition:"color 0.2s" }}>
-            ③ outcome
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, padding:"0 24px" }}>
-            <SentButton disabled={!canLog} onSent={handleSent} onFirstGo={handleFirstGo} lit={buttonsLit} />
-            <button style={{
-              ...S.outcomeBtn,
-              background: buttonsLit ? "#150f00" : "#111",
-              color: buttonsLit ? "#e07820" : "#333",
-              border: `1px solid ${buttonsLit ? "#3a2010" : "#1a1a1a"}`,
-              boxShadow: buttonsLit ? "0 0 0 1px #3a2010, 0 0 16px rgba(224,120,32,0.15)" : "none",
-              transition:"all 0.2s",
-            }} onClick={() => canLog && commitLog("project")}>PROJECT</button>
-            <button style={{
-              ...S.outcomeBtn,
-              background: buttonsLit ? "#06111a" : "#111",
-              color: buttonsLit ? "#4a9fd4" : "#333",
-              border: `1px solid ${buttonsLit ? "#1a4a6a" : "#1a1a1a"}`,
-              boxShadow: buttonsLit ? "0 0 0 1px #1a4a6a, 0 0 16px rgba(74,159,212,0.15)" : "none",
-              transition:"all 0.2s",
-            }} onClick={() => canLog && commitLog("repeat")}>REPEAT</button>
-          </div>
+        {/* Outcome buttons */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, padding:"22px 24px 0" }}>
+          <SentButton disabled={!canLog} onSent={handleSent} onFirstGo={handleFirstGo} />
+          <button style={{...S.outcomeBtn, background:"#150f00", color: canLog?"#e07820":"#2a1a08", border:`1px solid ${canLog?"#3a2010":"#1e1608"}`, opacity:1, transition:"all 0.15s"}}
+            onClick={() => canLog && commitLog("project")}>PROJECT</button>
+          <button style={{...S.outcomeBtn, background:"#06111a", color: canLog?"#4a9fd4":"#0a2030", border:`1px solid ${canLog?"#1a4a6a":"#061018"}`, opacity:1, transition:"all 0.15s"}}
+            onClick={() => canLog && commitLog("repeat")}>REPEAT</button>
         </div>
 
         {/* Recent logs */}
         {logs.length > 0 && (
-          <div style={S.recentLogs}>
-            {logs.slice(0,5).map(l => <LiveLogRow key={l.id} log={l} isNoteWindow={noteWindowId===l.id} onTap={() => openSheet(l)} />)}
+          <div style={{ padding:"20px 24px 140px" }}>
+            {logs.slice(0,5).map(l => (
+              <LiveLogRow key={l.id} log={l} isNoteWindow={noteWindowId===l.id} onTap={() => openSheet(l)} isNew={l.id===justLoggedId} />
+            ))}
           </div>
         )}
 
@@ -697,7 +667,7 @@ export default function App({ user, onSignOut }) {
         <div style={S.pageContainer}>
           <div style={{fontSize:44,color:"#4caf50",marginBottom:14}}>✓</div>
           <div style={S.pageTitle}>{vs.location}</div>
-          <div style={S.pageSubtitle}>{new Date(vs.started_at||vs.startTime).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
+          <div style={S.pageSubtitle}>{new Date(vs.started_at).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
           <div style={S.statsRow}>
             <div style={S.statBox}><div style={S.statNum}>{vs.logs.length}</div><div style={S.statLabel}>climbs</div></div>
             <div style={S.statBox}><div style={S.statNum}>{vSends.length}</div><div style={S.statLabel}>sends</div></div>
@@ -729,7 +699,7 @@ const S = {
   sessionCardLocation:{ fontSize:16, fontWeight:600, color:"#e0ddd8" },
   sessionCardMeta:{ fontSize:12, color:"#666", marginTop:3 },
   sessionCardDate:{ fontSize:12, color:"#444" },
-  trashBtn:{ background:"none", border:"none", color:"#333", fontSize:12, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace", letterSpacing:"0.06em" },
+  trashBtn:{ background:"none", border:"none", color:"#333", fontSize:12, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace", letterSpacing:"0.04em" },
   floatingBtn:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"16px 24px 36px", background:"linear-gradient(transparent, #0e0e0e 35%)", boxSizing:"border-box" },
   startBtn:{ width:"100%", padding:20, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"block" },
   signOutBtn:{ width:"100%", padding:10, background:"transparent", color:"#333", border:"none", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:8 },
@@ -742,31 +712,32 @@ const S = {
   statNum:{ fontSize:30, fontWeight:700 }, statLabel:{ fontSize:10, color:"#555", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
   detailRow:{ borderBottom:"1px solid #131313", paddingBottom:10, marginBottom:2, cursor:"pointer" },
   detailTop:{ display:"flex", alignItems:"center", gap:12, paddingTop:10 },
-  detailName:{ flex:1, color:"#bbb", fontSize:14 }, detailGrade:{ fontSize:12, color:"#555", fontWeight:600 },
+  detailName:{ flex:1, color:"#ccc", fontSize:14 }, detailGrade:{ fontSize:12, color:"#555", fontWeight:600 },
   tagPills:{ display:"flex", flexWrap:"wrap", gap:6, marginLeft:30, marginTop:6 },
   pill:{ fontSize:10, color:"#555", background:"#181818", padding:"3px 8px", borderRadius:10, letterSpacing:"0.04em" },
   noteChip:{ marginLeft:30, marginTop:5, fontSize:12, color:"#555", lineHeight:1.5 },
-  addChip:{ marginLeft:30, marginTop:5, fontSize:11, color:"#252525", letterSpacing:"0.06em" },
+  addChipDetail:{ marginLeft:30, marginTop:5, fontSize:11, color:"#4a7a4a", letterSpacing:"0.06em" },
   setupQ:{ fontSize:26, fontWeight:600, marginBottom:36, lineHeight:1.3 },
   setupGrid:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 },
   setupBtn:{ background:"#141414", border:"1px solid #222", borderRadius:8, padding:"28px 16px", color:"#f0ede8", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.05em", display:"flex", flexDirection:"column", alignItems:"center", gap:14 },
   setupIcon:{ fontSize:30 },
-  locationInput:{ width:"100%", background:"#141414", border:"1px solid #222", borderRadius:4, padding:16, color:"#f0ede8", fontSize:16, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box" },
-  suggestions:{ position:"absolute", top:"100%", left:0, right:0, background:"#161616", border:"1px solid #222", borderTop:"none", borderRadius:"0 0 4px 4px", zIndex:10 },
+  locationInput:{ width:"100%", background:"#141414", border:"1px solid #2a2a2a", borderRadius:6, padding:16, color:"#f0ede8", fontSize:16, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box" },
+  suggestions:{ position:"absolute", top:"100%", left:0, right:0, background:"#161616", border:"1px solid #222", borderTop:"none", borderRadius:"0 0 6px 6px", zIndex:10 },
   suggestionItem:{ padding:"12px 16px", fontSize:14, color:"#bbb", cursor:"pointer", borderBottom:"1px solid #1e1e1e" },
   flash:{ position:"fixed", top:0, left:"50%", transform:"translateX(-50%)", padding:"11px 24px", borderRadius:"0 0 8px 8px", fontSize:13, fontWeight:600, letterSpacing:"0.06em", zIndex:100, fontFamily:"'DM Mono',monospace", maxWidth:390, width:"100%", textAlign:"center" },
-  topBar:{ display:"flex", alignItems:"center", padding:"16px 16px 14px", borderBottom:"1px solid #161616" },
-  topBarIconBtn:{ background:"#1a1a1a", border:"1px solid #2a2a2a", color:"#f0ede8", width:38, height:38, borderRadius:6, fontSize:16, cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
-  sessionLocation:{ fontSize:16, fontWeight:700, letterSpacing:"0.04em", color:"#f0ede8" },
+  topBar:{ display:"flex", alignItems:"center", padding:"16px 16px 14px", borderBottom:"1px solid #1a1a1a" },
+  topBarIconBtn:{ background:"#1a1a1a", border:"1px solid #2a2a2a", color:"#e0ddd8", width:38, height:38, borderRadius:6, fontSize:16, cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
+  sessionLocation:{ fontSize:16, fontWeight:700, color:"#f0ede8" },
   sessionMeta:{ fontSize:12, marginTop:2 },
-  outcomeBtn:{ padding:"18px 8px", border:"none", borderRadius:6, fontSize:12, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
-  recentLogs:{ padding:"20px 24px 120px" },
-  logRowWrap:{ borderBottom:"1px solid #131313" },
-  logRow:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"9px 0 7px", cursor:"pointer" },
-  logName:{ fontSize:13, color:"#bbb" }, logMeta:{ fontSize:11, color:"#484848", marginTop:2 },
-  addPromptActive:{ fontSize:11, color:"#3a6a3a", marginTop:2, letterSpacing:"0.05em" },
-  addPromptFaded:{ fontSize:11, color:"#222", marginTop:2, letterSpacing:"0.05em" },
-  logGrade:{ fontSize:12, color:"#555", fontWeight:600, flexShrink:0, marginLeft:8 },
+  nameInputBoxed:{ width:"100%", background:"#141414", border:"1px solid #2e2e2e", borderRadius:6, padding:"14px 16px", color:"#f0ede8", fontSize:18, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", caretColor:"#f0ede8" },
+  outcomeBtn:{ padding:"20px 8px", border:"none", borderRadius:6, fontSize:12, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
+  logRowWrap:{ borderBottom:"1px solid #131313", borderRadius:4 },
+  logRow:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"10px 0 6px", cursor:"pointer" },
+  logName:{ fontSize:13, color:"#ccc" },
+  logMeta:{ fontSize:11, color:"#555", marginTop:2 },
+  addPromptActive:{ fontSize:12, color:"#5aaa5a", marginTop:3, letterSpacing:"0.04em", fontWeight:600 },
+  addPromptFaded:{ fontSize:12, color:"#3a5a3a", marginTop:3, letterSpacing:"0.04em" },
+  logGrade:{ fontSize:12, color:"#666", fontWeight:600, flexShrink:0, marginLeft:8 },
   endSessionBar:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"12px 24px 32px", background:"linear-gradient(transparent, #0e0e0e 30%)", boxSizing:"border-box" },
   endSessionBtn:{ width:"100%", padding:18, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:6, fontSize:13, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
   overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"flex-end", zIndex:200 },
@@ -775,7 +746,6 @@ const S = {
   sheetTitle:{ fontSize:18, fontWeight:700 },
   sheetNameInput:{ width:"100%", background:"transparent", border:"none", borderBottom:"1px solid #3a3a3a", color:"#f0ede8", fontSize:18, fontWeight:700, fontFamily:"'DM Mono',monospace", outline:"none", padding:"0 0 4px", caretColor:"#f0ede8", boxSizing:"border-box" },
   gradeEditBtn:{ fontSize:13, color:"#888", fontWeight:600, background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0, whiteSpace:"nowrap" },
-  iconBtn:{ background:"none", border:"none", color:"#333", fontSize:13, cursor:"pointer", padding:"0 4px", fontFamily:"'DM Mono',monospace", flexShrink:0 },
   tagSection:{ marginTop:20 }, tagLabel:{ fontSize:10, color:"#444", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 },
   chipRow:{ display:"flex", flexWrap:"wrap", gap:8 },
   noteInput:{ width:"100%", background:"#1a1a1a", border:"1px solid #252525", borderRadius:4, padding:"12px 14px", color:"#f0ede8", fontSize:13, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7, marginTop:4 },
