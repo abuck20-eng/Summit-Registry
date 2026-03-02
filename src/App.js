@@ -13,32 +13,32 @@ const DOUBLE_TAP_MS  = 300;
 const displayName = (log) => log.name || (log.is_gym ? "Plastic" : "unnamed");
 const gradeSort = (grade, discipline) => discipline === "route" ? (ROUTE_SORT[grade]||0) : (BOULDER_SORT[grade]||0);
 
-// ── Grade Slider ──────────────────────────────────────────────────────────────
-function GradeSlider({ grades, value, onChange }) {
+function GradeSlider({ grades, value, onChange, active }) {
   const [localIdx, setLocalIdx] = useState(Math.floor(grades.length / 2));
   const trackRef = useRef(null);
   const dragging = useRef(false);
   const localIdxRef = useRef(localIdx);
   useEffect(() => { if (!value) setLocalIdx(Math.floor(grades.length / 2)); }, [value, grades]);
   const getIdx = (clientX) => { const rect = trackRef.current.getBoundingClientRect(); return Math.round(Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)) * (grades.length - 1)); };
-  const onDown = (e) => { dragging.current = true; trackRef.current.setPointerCapture(e.pointerId); const i = getIdx(e.clientX); localIdxRef.current = i; setLocalIdx(i); onChange(grades[i]); };
+  const onDown = (e) => { if (!active) return; dragging.current = true; trackRef.current.setPointerCapture(e.pointerId); const i = getIdx(e.clientX); localIdxRef.current = i; setLocalIdx(i); onChange(grades[i]); };
   const onMove = (e) => { if (!dragging.current) return; const i = getIdx(e.clientX); if (i !== localIdxRef.current) { localIdxRef.current = i; setLocalIdx(i); onChange(grades[i]); } };
   const onUp = () => { dragging.current = false; };
   const di = value ? grades.indexOf(value) : localIdx;
   const pct = (di / (grades.length - 1)) * 100;
+  const trackColor = active ? (value ? "#f0ede8" : "#3a3a3a") : "#1c1c1c";
   return (
-    <div style={{ padding:"0 24px", userSelect:"none" }}>
+    <div style={{ padding:"0 24px", userSelect:"none", opacity: active ? 1 : 0.3, transition:"opacity 0.2s" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-        <span style={{ fontSize:11, color:"#3a3a3a", letterSpacing:"0.1em" }}>{grades[0]}</span>
-        <span style={{ fontSize:34, fontWeight:700, color: value ? "#f0ede8" : "#2e2e2e", transition:"color 0.12s" }}>{value || "—"}</span>
-        <span style={{ fontSize:11, color:"#3a3a3a", letterSpacing:"0.1em" }}>{grades[grades.length-1]}</span>
+        <span style={{ fontSize:11, color: active ? "#666" : "#2a2a2a", letterSpacing:"0.1em" }}>{grades[0]}</span>
+        <span style={{ fontSize:34, fontWeight:700, color: value ? "#f0ede8" : (active ? "#555" : "#222"), transition:"color 0.12s" }}>{value || "—"}</span>
+        <span style={{ fontSize:11, color: active ? "#666" : "#2a2a2a", letterSpacing:"0.1em" }}>{grades[grades.length-1]}</span>
       </div>
       <div ref={trackRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
-        style={{ position:"relative", height:52, display:"flex", alignItems:"center", cursor:"pointer", touchAction:"none" }}>
+        style={{ position:"relative", height:52, display:"flex", alignItems:"center", cursor: active ? "pointer" : "default", touchAction:"none" }}>
         <div style={{ position:"absolute", left:0, right:0, height:2, background:"#1c1c1c", borderRadius:1 }} />
-        <div style={{ position:"absolute", left:0, width:`${pct}%`, height:2, background:value?"#f0ede8":"#282828", borderRadius:1 }} />
-        {grades.map((_,i) => (<div key={i} style={{ position:"absolute", left:`${(i/(grades.length-1))*100}%`, transform:"translateX(-50%)", width:i===di?2:1, height:i===di?12:5, background:i===di?"#f0ede8":"#252525", bottom:10, borderRadius:1 }} />))}
-        <div style={{ position:"absolute", left:`${pct}%`, transform:"translateX(-50%)", width:26, height:26, borderRadius:"50%", background:value?"#f0ede8":"#1c1c1c", border:`2px solid ${value?"#f0ede8":"#2e2e2e"}`, boxShadow:value?"0 0 0 5px rgba(240,237,232,0.08)":"none", transition:"background 0.12s, border-color 0.12s" }} />
+        <div style={{ position:"absolute", left:0, width:`${pct}%`, height:2, background: trackColor, borderRadius:1, transition:"background 0.2s" }} />
+        {grades.map((_,i) => (<div key={i} style={{ position:"absolute", left:`${(i/(grades.length-1))*100}%`, transform:"translateX(-50%)", width:i===di?2:1, height:i===di?12:5, background:i===di?(active?"#f0ede8":"#333"):"#252525", bottom:10, borderRadius:1 }} />))}
+        <div style={{ position:"absolute", left:`${pct}%`, transform:"translateX(-50%)", width:26, height:26, borderRadius:"50%", background: value?(active?"#f0ede8":"#333"):"#1c1c1c", border:`2px solid ${value?(active?"#f0ede8":"#333"):"#2e2e2e"}`, boxShadow: active && value?"0 0 0 5px rgba(240,237,232,0.08)":"none", transition:"all 0.2s" }} />
       </div>
     </div>
   );
@@ -59,7 +59,7 @@ function ZapOverlay({ active }) {
   );
 }
 
-function SentButton({ disabled, onSent, onFirstGo }) {
+function SentButton({ disabled, onSent, onFirstGo, lit }) {
   const lastTap = useRef(0);
   const tapTimer = useRef(null);
   const [armed, setArmed] = useState(false);
@@ -71,19 +71,18 @@ function SentButton({ disabled, onSent, onFirstGo }) {
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
-    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#7ecf82" : "#4caf50", color:"#fff", opacity: disabled ? 0.2 : 1, transform: armed ? "scale(0.97)" : "scale(1)", position:"relative", overflow:"hidden", transition:"background 0.1s, opacity 0.12s, transform 0.08s" }}>
+    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#7ecf82" : "#4caf50", color:"#fff", opacity: disabled ? 0.2 : 1, transform: armed ? "scale(0.97)" : "scale(1)", position:"relative", overflow:"hidden", transition:"background 0.1s, opacity 0.2s, transform 0.08s", boxShadow: lit ? "0 0 0 2px #4caf50, 0 0 20px rgba(76,175,80,0.3)" : "none" }}>
       {armed ? "⚡ ?" : "SENT"}
       {armed && <span style={{ position:"absolute", bottom:6, left:0, right:0, fontSize:9, color:"rgba(255,255,255,0.6)", letterSpacing:"0.1em", textAlign:"center" }}>tap again for first go</span>}
     </button>
   );
 }
 
-// ── Location input with autocomplete ─────────────────────────────────────────
 function LocationInput({ value, onChange, placeholder, pastLocations }) {
   const [open, setOpen] = useState(false);
-  const matches = value.length > 0
+  const suggestions = value.length > 0
     ? pastLocations.filter(l => l.toLowerCase().includes(value.toLowerCase()) && l.toLowerCase() !== value.toLowerCase())
-    : pastLocations.slice(0, 5);
+    : pastLocations.slice(0, 3);
   return (
     <div style={{ position:"relative" }}>
       <input style={S.locationInput} placeholder={placeholder} value={value} autoFocus autoCapitalize="words"
@@ -91,9 +90,9 @@ function LocationInput({ value, onChange, placeholder, pastLocations }) {
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
       />
-      {open && matches.length > 0 && (
+      {open && suggestions.length > 0 && (
         <div style={S.suggestions}>
-          {matches.map(loc => (
+          {suggestions.map(loc => (
             <div key={loc} style={S.suggestionItem} onMouseDown={() => { onChange(loc); setOpen(false); }}>{loc}</div>
           ))}
         </div>
@@ -102,7 +101,6 @@ function LocationInput({ value, onChange, placeholder, pastLocations }) {
   );
 }
 
-// ── Detail Sheet ──────────────────────────────────────────────────────────────
 function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving }) {
   const [name, setName]         = useState(entry.name || "");
   const [editingName, setEditingName] = useState(false);
@@ -124,7 +122,7 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
         <div style={S.sheetHandle} />
         <div style={{ textAlign:"center", padding:"12px 0 8px" }}>
           <div style={{ fontSize:18, fontWeight:700, marginBottom:8 }}>delete this climb?</div>
-          <div style={{ fontSize:13, color:"#555", marginBottom:24 }}>{displayName(entry)} · {entry.grade}</div>
+          <div style={{ fontSize:13, color:"#666", marginBottom:24 }}>{displayName(entry)} · {entry.grade}</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
             <button style={S.btnSecondary} onClick={() => setConfirmDelete(false)}>cancel</button>
             <button style={{ ...S.btnPrimary, background:"#c0392b" }} onClick={onDelete}>delete</button>
@@ -138,21 +136,17 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
     <div style={S.overlay} onClick={onDismiss}>
       <div style={{ ...S.sheet, position:"relative" }} onClick={e => e.stopPropagation()}>
         <div style={S.sheetHandle} />
-
-        {/* Outcome toggle */}
         <div style={{ display:"flex", gap:8, marginBottom:20 }}>
           {["sent","project","repeat"].map(o => (
             <button key={o} onClick={() => setOutcome(o)} style={{
               flex:1, padding:"10px 4px", borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.08em",
               cursor:"pointer", fontFamily:"'DM Mono',monospace", transition:"all 0.12s",
               background: outcome===o ? (o==="sent"?"#4caf50":o==="project"?"#1a1208":"#0a1a2a") : "#161616",
-              color: outcome===o ? (o==="sent"?"#fff":o==="project"?"#e07820":"#4a9fd4") : "#333",
-              border: outcome===o ? (o==="sent"?"none":o==="project"?"1px solid #3a2010":"1px solid #1a4a6a") : "1px solid #1e1e1e",
+              color: outcome===o ? (o==="sent"?"#fff":o==="project"?"#e07820":"#4a9fd4") : "#444",
+              border: outcome===o ? (o==="sent"?"1px solid #4caf50":o==="project"?"1px solid #3a2010":"1px solid #1a4a6a") : "1px solid #1e1e1e",
             }}>{o.toUpperCase()}</button>
           ))}
         </div>
-
-        {/* Name row */}
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:20 }}>
           <div style={{ flex:1, minWidth:0 }}>
             {editingName ? (
@@ -172,22 +166,19 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
                 <div style={{ fontSize:14, fontWeight:600, letterSpacing:"0.08em" }}>change grade</div>
                 <button onClick={() => setEditingGrade(false)} style={{ background:"none", border:"none", color:"#555", fontSize:20, cursor:"pointer", fontFamily:"inherit" }}>✕</button>
               </div>
-              <GradeSlider grades={grades} value={grade} onChange={setGrade} />
+              <GradeSlider grades={grades} value={grade} onChange={setGrade} active={true} />
               <button style={{...S.btnPrimary, width:"100%", marginTop:20}} onClick={() => setEditingGrade(false)}>done</button>
             </div>
           ) : (
             <button onClick={() => setEditingGrade(true)} style={S.gradeEditBtn}>{grade}</button>
           )}
         </div>
-
-        {/* First go — only for sent */}
         {outcome === "sent" && (
           <div style={S.tagSection}>
             <div style={S.chipRow}><Chip label={firstGo ? "⚡ First go" : "⚡ First go?"} selected={firstGo} onToggle={() => setFirstGo(p=>!p)} accent="#a06010" /></div>
-            <div style={{ fontSize:11, color:"#2a2a2a", marginTop:8 }}>{firstGo ? "tap to remove" : "tap to mark as first go"}</div>
+            <div style={{ fontSize:11, color:"#333", marginTop:8 }}>{firstGo ? "tap to remove" : "tap to mark as first go"}</div>
           </div>
         )}
-
         <div style={S.tagSection}>
           <div style={S.tagLabel}>angle</div>
           <div style={S.chipRow}>{ANGLES.map(a => <Chip key={a} label={a} selected={angles.includes(a)} onToggle={() => toggleAngle(a)} />)}</div>
@@ -200,7 +191,6 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
           <div style={S.tagLabel}>note</div>
           <textarea style={S.noteInput} placeholder="what clicked, what to try next..." value={note} onChange={e=>setNote(e.target.value)} rows={3} />
         </div>
-
         <div style={S.sheetBtns}>
           <button style={{ ...S.btnSecondary, color:"#c0392b", borderColor:"#2a1515" }} onClick={() => setConfirmDelete(true)}>delete</button>
           <button style={{ ...S.btnPrimary, flex:2, opacity: saving ? 0.6 : 1 }} onClick={() => onSave({ name: name.trim()||null, grade, outcome, note, angles, styles, first_go: outcome==="sent" ? firstGo : false })} disabled={saving}>
@@ -232,11 +222,7 @@ function LiveLogRow({ log, isNoteWindow, onTap }) {
     <div style={S.logRowWrap}>
       <div style={S.logRow} onClick={onTap}>
         <div style={{ display:"flex", alignItems:"flex-start", gap:10, flex:1, minWidth:0 }}>
-          <span style={{
-            width:9, height:9, borderRadius:"50%", flexShrink:0, marginTop:4, display:"inline-block",
-            background: isSent ? "#4caf50" : "transparent",
-            border: isSent ? "none" : isRepeat ? "2px solid #4a9fd4" : "2px solid #e07820",
-          }} />
+          <span style={{ width:9, height:9, borderRadius:"50%", flexShrink:0, marginTop:5, display:"inline-block", background: isSent ? "#4caf50" : "transparent", border: isSent ? "none" : isRepeat ? "2px solid #4a9fd4" : "2px solid #e07820" }} />
           <div style={{ minWidth:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
               <span style={S.logName}>{displayName(log)}</span>
@@ -275,7 +261,6 @@ function LogDetailRow({ log, onTap }) {
   );
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────────
 export default function App({ user, onSignOut }) {
   const [screen, setScreen] = useState("home");
   const [activeSession, setActiveSession] = useState(null);
@@ -297,11 +282,23 @@ export default function App({ user, onSignOut }) {
   const [sheetSaving, setSheetSaving] = useState(false);
   const [zapActive, setZapActive] = useState(false);
   const [deleteSessionTarget, setDeleteSessionTarget] = useState(null);
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [newLocation, setNewLocation] = useState("");
   const noteTimerRef = useRef(null);
 
   const grades = discipline === "route" ? ROUTE_GRADES : BOULDER_GRADES;
   const isOutdoor = environment === "outdoor";
-  const canLog = selectedGrade && (!isOutdoor || climbName.trim());
+  const isGym = environment === "gym";
+
+  // Progressive flow steps
+  // Step 1: name (required outdoor, optional gym — gym skips straight to step 2)
+  // Step 2: grade selected
+  // Step 3: buttons lit
+  const nameReady = isGym ? true : climbName.trim().length > 0;
+  const gradeReady = nameReady && !!selectedGrade;
+  const buttonsLit = gradeReady;
+  const canLog = gradeReady && (!isOutdoor || climbName.trim());
+
   const pastLocations = environment === "gym" ? gymLocations : outdoorLocations;
 
   useEffect(() => { loadSessions(); }, []);
@@ -315,20 +312,10 @@ export default function App({ user, onSignOut }) {
       return { ...s, logs: climbs || [] };
     }));
     setAllSessions(sessionsWithClimbs);
-    // Scope location suggestions by environment
-    const gymLocs = [...new Set(sessionsWithClimbs.filter(s=>s.environment==="gym").map(s=>s.location).filter(Boolean))];
-    const outdoorLocs = [...new Set(sessionsWithClimbs.filter(s=>s.environment==="outdoor").map(s=>s.location).filter(Boolean))];
-    setGymLocations(gymLocs);
-    setOutdoorLocations(outdoorLocs);
-
-    // Resume active session if one exists (no ended_at)
+    setGymLocations([...new Set(sessionsWithClimbs.filter(s=>s.environment==="gym").map(s=>s.location).filter(Boolean))]);
+    setOutdoorLocations([...new Set(sessionsWithClimbs.filter(s=>s.environment==="outdoor").map(s=>s.location).filter(Boolean))]);
     const active = sessionsWithClimbs.find(s => !s.ended_at);
-    if (active) {
-      setActiveSession(active);
-      setLogs(active.logs);
-      setEnvironment(active.environment);
-      setDiscipline(active.discipline);
-    }
+    if (active) { setActiveSession(active); setLogs(active.logs); setEnvironment(active.environment); setDiscipline(active.discipline); }
     setLoadingSessions(false);
   };
 
@@ -347,7 +334,7 @@ export default function App({ user, onSignOut }) {
       session_id: sessionId, user_id: user.id, name: climbData.name, grade: climbData.grade,
       grade_sort: gradeSort(climbData.grade, discipline), outcome: climbData.outcome,
       first_go: climbData.first_go, angles: climbData.angles, styles: climbData.styles,
-      note: climbData.note, is_gym: environment === "gym",
+      note: climbData.note, is_gym: isGym,
     }).select().single();
     if (error) { console.error(error); return null; }
     return data;
@@ -358,9 +345,7 @@ export default function App({ user, onSignOut }) {
     if (error) console.error(error);
   };
 
-  const deleteClimbFromDb = async (climbId) => {
-    await supabase.from('climbs').delete().eq('id', climbId);
-  };
+  const deleteClimbFromDb = async (climbId) => { await supabase.from('climbs').delete().eq('id', climbId); };
 
   const deleteSession = async (sessionId) => {
     await supabase.from('climbs').delete().eq('session_id', sessionId);
@@ -370,9 +355,16 @@ export default function App({ user, onSignOut }) {
     if (activeSession?.id === sessionId) { setActiveSession(null); setLogs([]); }
   };
 
+  const renameLocation = async () => {
+    if (!newLocation.trim() || !activeSession) return;
+    await supabase.from('sessions').update({ location: newLocation.trim() }).eq('id', activeSession.id);
+    setActiveSession(prev => ({...prev, location: newLocation.trim()}));
+    setEditingLocation(false);
+  };
+
   const commitLog = async (outcome, firstGo = false) => {
     if (!canLog || !activeSession) return;
-    const climbData = { name: climbName.trim()||null, grade: selectedGrade, outcome, first_go: firstGo, angles:[], styles:[], note:"", is_gym: environment==="gym" };
+    const climbData = { name: climbName.trim()||null, grade: selectedGrade, outcome, first_go: firstGo, angles:[], styles:[], note:"", is_gym: isGym };
     const tempEntry = { id:`temp-${Date.now()}`, ...climbData, logged_at: new Date().toISOString() };
     setLogs(prev => [tempEntry,...prev]);
     setJustLogged(tempEntry);
@@ -382,7 +374,7 @@ export default function App({ user, onSignOut }) {
     setNoteWindowId(tempEntry.id);
     noteTimerRef.current = setTimeout(() => setNoteWindowId(null), NOTE_WINDOW_MS);
     const saved = await saveClimbToDb(activeSession.id, climbData);
-    if (saved) { setLogs(prev => prev.map(l => l.id===tempEntry.id ? {...saved, is_gym: environment==="gym"} : l)); setNoteWindowId(saved.id); }
+    if (saved) { setLogs(prev => prev.map(l => l.id===tempEntry.id ? {...saved, is_gym: isGym} : l)); setNoteWindowId(saved.id); }
   };
 
   const handleSent = () => commitLog("sent", false);
@@ -424,7 +416,7 @@ export default function App({ user, onSignOut }) {
   };
 
   const goBackSetup = () => {
-    if (setupStep === 0) { setScreen("home"); }
+    if (setupStep === 0) setScreen("home");
     else if (setupStep === 1) { setEnvironment(null); setLocation(""); setSetupStep(0); }
     else { setDiscipline(null); setLocation(""); setSetupStep(1); }
   };
@@ -440,8 +432,7 @@ export default function App({ user, onSignOut }) {
 
   const endSession = async () => {
     if (logs.length === 0) {
-      // Warn and delete empty session
-      const confirmed = window.confirm("No climbs logged. End session anyway? It won't be saved.");
+      const confirmed = window.confirm("No climbs logged — end session anyway? It won't be saved.");
       if (!confirmed) return;
       await supabase.from('sessions').delete().eq('id', activeSession.id);
       setActiveSession(null); setLogs([]);
@@ -457,20 +448,19 @@ export default function App({ user, onSignOut }) {
   };
 
   const sends   = logs.filter(l => l.outcome==="sent");
-  const flashes = logs.filter(l => l.first_go===true);
   const repeats = logs.filter(l => l.outcome==="repeat");
+  const flashes = logs.filter(l => l.first_go===true);
 
   const Sheet = () => sheetEntry ? <DetailSheet entry={sheetEntry} discipline={discipline||"boulder"} onSave={saveDetail} onDismiss={() => setSheetEntry(null)} onDelete={deleteClimb} saving={sheetSaving} /> : null;
 
-  // Delete session confirmation modal
   const DeleteSessionModal = () => !deleteSessionTarget ? null : (
     <div style={S.overlay} onClick={() => setDeleteSessionTarget(null)}>
       <div style={S.sheet} onClick={e => e.stopPropagation()}>
         <div style={S.sheetHandle} />
         <div style={{ textAlign:"center", padding:"12px 0 8px" }}>
           <div style={{ fontSize:18, fontWeight:700, marginBottom:8 }}>delete this session?</div>
-          <div style={{ fontSize:13, color:"#555", marginBottom:4 }}>{deleteSessionTarget.location}</div>
-          <div style={{ fontSize:12, color:"#444", marginBottom:24 }}>{deleteSessionTarget.logs?.length || 0} climbs will be permanently deleted</div>
+          <div style={{ fontSize:13, color:"#777", marginBottom:4 }}>{deleteSessionTarget.location}</div>
+          <div style={{ fontSize:12, color:"#555", marginBottom:24 }}>{deleteSessionTarget.logs?.length || 0} climbs will be permanently deleted</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
             <button style={S.btnSecondary} onClick={() => setDeleteSessionTarget(null)}>cancel</button>
             <button style={{ ...S.btnPrimary, background:"#c0392b" }} onClick={() => deleteSession(deleteSessionTarget.id)}>delete</button>
@@ -480,7 +470,7 @@ export default function App({ user, onSignOut }) {
     </div>
   );
 
-  // ── HOME ────────────────────────────────────────────────────────────────────
+  // HOME
   if (screen==="home") {
     const pastSessions = allSessions.filter(s => s.ended_at);
     return (
@@ -488,23 +478,22 @@ export default function App({ user, onSignOut }) {
         <Sheet /><DeleteSessionModal />
         <div style={S.homeContainer}>
           <div style={S.homeTop}><div style={S.logo}>SUMMIT</div><div style={S.tagline}>your climbing registry</div></div>
-
-          {/* Active session card */}
           {activeSession && (
-            <div style={S.activeCard} onClick={() => { setScreen("logging"); }}>
+            <div style={S.activeCard} onClick={() => setScreen("logging")}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                 <div>
-                  <div style={{ fontSize:11, color:"#4caf50", letterSpacing:"0.15em", marginBottom:4 }}>● IN PROGRESS</div>
-                  <div style={{ fontSize:18, fontWeight:700 }}>{activeSession.location}</div>
-                  <div style={{ fontSize:12, color:"#555", marginTop:3 }}>{activeSession.discipline} · {logs.length} logged · {sends.length} sends</div>
+                  <div style={{ fontSize:11, color:"#4caf50", letterSpacing:"0.15em", marginBottom:6 }}>● IN PROGRESS</div>
+                  <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{activeSession.location}</div>
+                  <div style={{ fontSize:13, color:"#888", marginTop:4 }}>
+                    {activeSession.discipline} · {logs.length} logged · {sends.length} sends{flashes.length>0?` · ${flashes.length} ⚡`:""}
+                  </div>
                 </div>
                 <button style={S.endBtnSmall} onClick={e => { e.stopPropagation(); endSession(); }}>END</button>
               </div>
             </div>
           )}
-
           {loadingSessions ? (
-            <div style={S.emptyState}><div style={{color:"#333",fontSize:12,letterSpacing:"0.1em"}}>loading...</div></div>
+            <div style={S.emptyState}><div style={{color:"#444",fontSize:12,letterSpacing:"0.1em"}}>loading...</div></div>
           ) : pastSessions.length > 0 ? (
             <div style={S.sessionList}>
               <div style={S.sectionLabel}>sessions</div>
@@ -521,28 +510,19 @@ export default function App({ user, onSignOut }) {
                 </div>
               ))}
             </div>
-          ) : !activeSession ? (
+          ) : !activeSession && (
             <div style={S.emptyState}><div style={S.emptyIcon}>⬡</div><div style={S.emptyText}>no sessions yet</div></div>
-          ) : null}
+          )}
         </div>
-
-        {/* Floating start session button */}
-        {!activeSession && (
-          <div style={S.floatingBtn}>
-            <button style={S.startBtn} onClick={startSetup}>START SESSION</button>
-            <button style={S.signOutBtn} onClick={onSignOut}>sign out</button>
-          </div>
-        )}
-        {activeSession && (
-          <div style={S.floatingBtn}>
-            <button style={S.signOutBtn} onClick={onSignOut}>sign out</button>
-          </div>
-        )}
+        <div style={S.floatingBtn}>
+          {!activeSession && <button style={S.startBtn} onClick={startSetup}>START SESSION</button>}
+          <button style={S.signOutBtn} onClick={onSignOut}>sign out</button>
+        </div>
       </div>
     );
   }
 
-  // ── SESSION DETAIL ──────────────────────────────────────────────────────────
+  // SESSION DETAIL
   if (screen==="sessionDetail" && viewingSession) {
     const s = viewingSession;
     const sf = (s.logs||[]).filter(l=>l.first_go===true);
@@ -551,7 +531,7 @@ export default function App({ user, onSignOut }) {
         <div style={S.pageContainer}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:40 }}>
             <button style={S.backBtn} onClick={() => {setViewingSession(null);setScreen("home");}}>←</button>
-            <button style={{ ...S.trashBtn, fontSize:16 }} onClick={() => setDeleteSessionTarget(s)}>✕</button>
+            <button style={{ ...S.trashBtn, color:"#c0392b" }} onClick={() => setDeleteSessionTarget(s)}>✕ delete session</button>
           </div>
           <div style={S.pageTitle}>{s.location}</div>
           <div style={S.pageSubtitle}>{new Date(s.started_at).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
@@ -567,7 +547,7 @@ export default function App({ user, onSignOut }) {
     );
   }
 
-  // ── SETUP ───────────────────────────────────────────────────────────────────
+  // SETUP
   if (screen==="setup") return (
     <div style={S.app}>
       <div style={S.pageContainer}>
@@ -575,72 +555,138 @@ export default function App({ user, onSignOut }) {
         {setupStep===0 && <><div style={S.setupQ}>where are you?</div><div style={S.setupGrid}><button style={S.setupBtn} onClick={() => pick("outdoor")}><span style={S.setupIcon}>⛰</span>Outdoor</button><button style={S.setupBtn} onClick={() => pick("gym")}><span style={S.setupIcon}>🏟</span>Gym</button></div></>}
         {setupStep===1 && <><div style={S.setupQ}>what are you climbing?</div><div style={S.setupGrid}><button style={S.setupBtn} onClick={() => pick("boulder")}><span style={S.setupIcon}>◈</span>Boulder</button><button style={S.setupBtn} onClick={() => pick("route")}><span style={S.setupIcon}>↑</span>Route</button></div></>}
         {setupStep===2 && <>
-          <div style={S.setupQ}>{environment==="gym"?"which gym?":"where at?"}</div>
-          <LocationInput value={location} onChange={setLocation} placeholder={environment==="gym"?"e.g. Movement RiNo":"e.g. Red Rock Canyon"} pastLocations={pastLocations} />
+          <div style={S.setupQ}>{isGym?"which gym?":"where at?"}</div>
+          <LocationInput value={location} onChange={setLocation} placeholder={isGym?"e.g. Movement RiNo":"e.g. Red Rock Canyon"} pastLocations={pastLocations} />
           <button style={{...S.startBtn, marginTop:32, opacity:location.trim()?1:0.35}} onClick={location.trim()?startSession:undefined}>BEGIN SESSION</button>
         </>}
       </div>
     </div>
   );
 
-  // ── LOGGING ─────────────────────────────────────────────────────────────────
-  if (screen==="logging") return (
-    <div style={S.app}>
-      <ZapOverlay active={zapActive} /><Sheet />
-      {justLogged && (
-        <div style={{...S.flash, background:justLogged.first_go?"#fff8e0":justLogged.outcome==="sent"?"#c8f5c8":justLogged.outcome==="repeat"?"#0a1a2a":"#1e1e1e", color:justLogged.first_go?"#a06010":justLogged.outcome==="sent"?"#1a5c1a":justLogged.outcome==="repeat"?"#4a9fd4":"#777", border:justLogged.outcome==="project"?"1px solid #2a2a2a":justLogged.outcome==="repeat"?"1px solid #1a4a6a":"none"}}>
-          {justLogged.first_go?"⚡ first go!":justLogged.outcome==="sent"?"✓ sent":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
+  // LOGGING
+  if (screen==="logging") {
+    if (editingLocation) return (
+      <div style={S.app}>
+        <div style={S.pageContainer}>
+          <button style={S.backBtn} onClick={() => setEditingLocation(false)}>←</button>
+          <div style={S.setupQ}>rename location</div>
+          <input style={S.locationInput} autoFocus value={newLocation} onChange={e => setNewLocation(e.target.value)}
+            placeholder={activeSession?.location} onKeyDown={e => e.key==="Enter" && renameLocation()} />
+          <button style={{...S.startBtn, marginTop:32, opacity:newLocation.trim()?1:0.35}} onClick={newLocation.trim()?renameLocation:undefined}>SAVE</button>
         </div>
-      )}
+      </div>
+    );
 
-      {/* Session header */}
-      <div style={S.sessionHeader}>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={S.sessionLocation}>{activeSession?.location}</div>
-          <div style={S.sessionMeta}>{logs.length} logged · {sends.length} sends{repeats.length>0?` · ${repeats.length} ↺`:""}
-          {flashes.length>0?` · ${flashes.length} ⚡`:""}</div>
+    return (
+      <div style={S.app}>
+        <ZapOverlay active={zapActive} /><Sheet />
+
+        {justLogged && (
+          <div style={{...S.flash,
+            background: justLogged.first_go?"#fff8e0":justLogged.outcome==="sent"?"#c8f5c8":justLogged.outcome==="repeat"?"#061828":"#1e1e1e",
+            color: justLogged.first_go?"#a06010":justLogged.outcome==="sent"?"#1a5c1a":justLogged.outcome==="repeat"?"#4a9fd4":"#777",
+            border: justLogged.outcome==="project"?"1px solid #2a2a2a":justLogged.outcome==="repeat"?"1px solid #1a4a6a":"none"}}>
+            {justLogged.first_go?"⚡ first go!":justLogged.outcome==="sent"?"✓ sent":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
+          </div>
+        )}
+
+        {/* Top bar */}
+        <div style={S.topBar}>
+          <button style={S.topBarIconBtn} onClick={() => setScreen("home")} title="home">⌂</button>
+          <div style={{ flex:1, textAlign:"center", padding:"0 8px" }}>
+            <div style={S.sessionLocation}>{activeSession?.location}</div>
+            <div style={S.sessionMeta}>
+              <span style={{color:"#777"}}>{logs.length} logged</span>
+              {sends.length > 0 && <span style={{color:"#4caf50"}}> · {sends.length} sent</span>}
+              {repeats.length > 0 && <span style={{color:"#4a9fd4"}}> · {repeats.length} ↺</span>}
+              {flashes.length > 0 && <span style={{color:"#c07820"}}> · {flashes.length} ⚡</span>}
+            </div>
+          </div>
+          <button style={S.topBarIconBtn} onClick={() => { setNewLocation(activeSession?.location||""); setEditingLocation(true); }} title="rename location">✎</button>
         </div>
-        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          <button style={S.homeIconBtn} onClick={() => setScreen("home")}>⌂</button>
+
+        {/* STEP 1 — Climb name */}
+        <div style={{ padding:"24px 24px 0" }}>
+          <div style={{ fontSize:10, letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8, color: nameReady ? "#888" : "#f0ede8", transition:"color 0.2s" }}>
+            {isOutdoor ? "① climb name — required" : "① climb name — optional"}
+          </div>
+          <div style={{
+            border: `1px solid ${nameReady ? "#2a2a2a" : "#444"}`,
+            borderRadius:6,
+            padding:"14px 16px",
+            background: nameReady ? "#111" : "#161616",
+            transition:"all 0.2s",
+            boxShadow: nameReady ? "none" : "0 0 0 1px #333",
+          }}>
+            <input
+              style={{ width:"100%", background:"transparent", border:"none", color:"#f0ede8", fontSize:18, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", caretColor:"#f0ede8" }}
+              placeholder={isOutdoor ? "e.g. Midnight Lightning" : "e.g. Techno Surfing (or skip)"}
+              value={climbName}
+              onChange={e => setClimbName(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* STEP 2 — Grade */}
+        <div style={{ marginTop:28, opacity: nameReady ? 1 : 0.25, transition:"opacity 0.25s", pointerEvents: nameReady ? "auto" : "none" }}>
+          <div style={{ fontSize:10, color: gradeReady ? "#888" : (nameReady ? "#f0ede8" : "#444"), letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:12, paddingLeft:24, transition:"color 0.2s" }}>
+            ② grade
+          </div>
+          <div style={{
+            margin:"0 16px",
+            border: `1px solid ${gradeReady ? "#2a2a2a" : (nameReady ? "#444" : "#1e1e1e")}`,
+            borderRadius:8,
+            padding:"12px 0",
+            background: gradeReady ? "#111" : (nameReady ? "#161616" : "#0e0e0e"),
+            transition:"all 0.2s",
+            boxShadow: gradeReady ? "none" : nameReady ? "0 0 0 1px #333" : "none",
+          }}>
+            <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} active={nameReady} />
+          </div>
+        </div>
+
+        {/* STEP 3 — Outcome buttons */}
+        <div style={{ marginTop:24, opacity: buttonsLit ? 1 : 0.2, transition:"opacity 0.25s", pointerEvents: buttonsLit ? "auto" : "none" }}>
+          <div style={{ fontSize:10, color: buttonsLit ? "#f0ede8" : "#444", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:10, paddingLeft:24, transition:"color 0.2s" }}>
+            ③ outcome
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, padding:"0 24px" }}>
+            <SentButton disabled={!canLog} onSent={handleSent} onFirstGo={handleFirstGo} lit={buttonsLit} />
+            <button style={{
+              ...S.outcomeBtn,
+              background: buttonsLit ? "#150f00" : "#111",
+              color: buttonsLit ? "#e07820" : "#333",
+              border: `1px solid ${buttonsLit ? "#3a2010" : "#1a1a1a"}`,
+              boxShadow: buttonsLit ? "0 0 0 1px #3a2010, 0 0 16px rgba(224,120,32,0.15)" : "none",
+              transition:"all 0.2s",
+            }} onClick={() => canLog && commitLog("project")}>PROJECT</button>
+            <button style={{
+              ...S.outcomeBtn,
+              background: buttonsLit ? "#06111a" : "#111",
+              color: buttonsLit ? "#4a9fd4" : "#333",
+              border: `1px solid ${buttonsLit ? "#1a4a6a" : "#1a1a1a"}`,
+              boxShadow: buttonsLit ? "0 0 0 1px #1a4a6a, 0 0 16px rgba(74,159,212,0.15)" : "none",
+              transition:"all 0.2s",
+            }} onClick={() => canLog && commitLog("repeat")}>REPEAT</button>
+          </div>
+        </div>
+
+        {/* Recent logs */}
+        {logs.length > 0 && (
+          <div style={S.recentLogs}>
+            {logs.slice(0,5).map(l => <LiveLogRow key={l.id} log={l} isNoteWindow={noteWindowId===l.id} onTap={() => openSheet(l)} />)}
+          </div>
+        )}
+
+        {/* END SESSION pinned at bottom */}
+        <div style={S.endSessionBar}>
           <button style={S.endSessionBtn} onClick={endSession}>END SESSION</button>
         </div>
       </div>
+    );
+  }
 
-      {/* Name input */}
-      <div style={S.nameSection}>
-        <div style={{ fontSize:10, color:"#444", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:10 }}>
-          {isOutdoor ? "climb name (required)" : "climb name (optional)"}
-        </div>
-        <input
-          style={{ ...S.nameInput, borderBottomColor: isOutdoor ? (climbName.trim() ? "#3a3a3a" : "#2a2020") : "#1e1e1e" }}
-          placeholder={isOutdoor ? "e.g. Midnight Lightning" : "e.g. Techno Surfing"}
-          value={climbName}
-          onChange={e => setClimbName(e.target.value)}
-        />
-      </div>
-
-      {/* Grade */}
-      <div style={S.gradeSection}>
-        <div style={S.gradeLabel}>grade</div>
-        <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} />
-      </div>
-
-      {/* Outcome buttons — 3 across */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, padding:"20px 24px 0" }}>
-        <SentButton disabled={!canLog} onSent={handleSent} onFirstGo={handleFirstGo} />
-        <button style={{...S.outcomeBtn, background:"#150f00", color: canLog?"#e07820":"#2a1a08", border:`1px solid ${canLog?"#3a2010":"#1e1608"}`, transition:"all 0.12s"}} onClick={() => canLog && commitLog("project")}>PROJECT</button>
-        <button style={{...S.outcomeBtn, background:"#06111a", color: canLog?"#4a9fd4":"#0a2030", border:`1px solid ${canLog?"#1a4a6a":"#061018"}`, transition:"all 0.12s"}} onClick={() => canLog && commitLog("repeat")}>REPEAT</button>
-      </div>
-
-      {logs.length > 0 && (
-        <div style={S.recentLogs}>
-          {logs.slice(0,6).map(l => <LiveLogRow key={l.id} log={l} isNoteWindow={noteWindowId===l.id} onTap={() => openSheet(l)} />)}
-        </div>
-      )}
-    </div>
-  );
-
-  // ── SUMMARY ─────────────────────────────────────────────────────────────────
+  // SUMMARY
   if (screen==="summary" && viewingSession) {
     const vs = viewingSession;
     const vSends   = vs.logs.filter(l=>l.outcome==="sent");
@@ -657,10 +703,10 @@ export default function App({ user, onSignOut }) {
             <div style={S.statBox}><div style={S.statNum}>{vSends.length}</div><div style={S.statLabel}>sends</div></div>
             <div style={S.statBox}><div style={S.statNum}>{vFlashes.length}</div><div style={S.statLabel}>⚡ first go</div></div>
           </div>
-          {vRepeats.length > 0 && <div style={{ fontSize:12, color:"#4a9fd4", marginBottom:16 }}>↺ {vRepeats.length} repeat{vRepeats.length>1?"s":""}</div>}
+          {vRepeats.length > 0 && <div style={{ fontSize:12, color:"#4a9fd4", marginBottom:20 }}>↺ {vRepeats.length} repeat{vRepeats.length>1?"s":""}</div>}
           <div style={S.sectionLabel}>climbs</div>
           {vs.logs.map(l => <LogDetailRow key={l.id} log={l} onTap={() => openSheet(l)} />)}
-          <button style={{...S.startBtn,marginTop:32}} onClick={() => {setViewingSession(null);setScreen("home");loadSessions();}}>DONE</button>
+          <button style={{...S.startBtn,marginTop:32,marginBottom:48}} onClick={() => {setViewingSession(null);setScreen("home");loadSessions();}}>DONE</button>
         </div>
       </div>
     );
@@ -673,28 +719,30 @@ const S = {
   homeTop:{ marginBottom:32 },
   logo:{ fontSize:40, fontWeight:700, letterSpacing:"0.15em" },
   tagline:{ fontSize:12, color:"#555", letterSpacing:"0.08em", marginTop:4 },
-  activeCard:{ background:"#0f1f0f", border:"1px solid #1a3a1a", borderRadius:8, padding:"16px 18px", marginBottom:24, cursor:"pointer" },
-  endBtnSmall:{ background:"none", border:"1px solid #2a3a2a", color:"#4caf50", padding:"6px 12px", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0 },
-  emptyState:{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12, color:"#2a2a2a" },
+  activeCard:{ background:"#0d1f0d", border:"1px solid #1e3a1e", borderRadius:8, padding:"18px 20px", marginBottom:28, cursor:"pointer" },
+  endBtnSmall:{ background:"none", border:"1px solid #2a4a2a", color:"#4caf50", padding:"7px 14px", borderRadius:4, fontSize:11, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0 },
+  emptyState:{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12, color:"#333" },
   emptyIcon:{ fontSize:52 }, emptyText:{ fontSize:13, letterSpacing:"0.12em" },
-  sectionLabel:{ fontSize:10, color:"#555", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:4, paddingTop:4 },
+  sectionLabel:{ fontSize:10, color:"#666", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:4, paddingTop:4 },
   sessionList:{ flex:1, marginBottom:16 },
   sessionCard:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 0", borderBottom:"1px solid #161616", cursor:"pointer" },
-  sessionCardLocation:{ fontSize:16, fontWeight:600 }, sessionCardMeta:{ fontSize:12, color:"#555", marginTop:3 }, sessionCardDate:{ fontSize:12, color:"#404040" },
-  trashBtn:{ background:"none", border:"none", color:"#2a2a2a", fontSize:14, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace" },
-  floatingBtn:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"16px 24px 32px", background:"linear-gradient(transparent, #0e0e0e 40%)", boxSizing:"border-box" },
+  sessionCardLocation:{ fontSize:16, fontWeight:600, color:"#e0ddd8" },
+  sessionCardMeta:{ fontSize:12, color:"#666", marginTop:3 },
+  sessionCardDate:{ fontSize:12, color:"#444" },
+  trashBtn:{ background:"none", border:"none", color:"#333", fontSize:12, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace", letterSpacing:"0.06em" },
+  floatingBtn:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"16px 24px 36px", background:"linear-gradient(transparent, #0e0e0e 35%)", boxSizing:"border-box" },
   startBtn:{ width:"100%", padding:20, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"block" },
-  signOutBtn:{ width:"100%", padding:10, background:"transparent", color:"#2a2a2a", border:"none", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:8 },
+  signOutBtn:{ width:"100%", padding:10, background:"transparent", color:"#333", border:"none", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:8 },
   pageContainer:{ padding:"52px 24px 48px", minHeight:"100vh", display:"flex", flexDirection:"column" },
-  backBtn:{ background:"none", border:"none", color:"#555", fontSize:22, cursor:"pointer", padding:0, fontFamily:"'DM Mono',monospace", alignSelf:"flex-start" },
+  backBtn:{ background:"none", border:"none", color:"#888", fontSize:22, cursor:"pointer", padding:0, fontFamily:"'DM Mono',monospace", alignSelf:"flex-start" },
   pageTitle:{ fontSize:26, fontWeight:700, letterSpacing:"0.04em", marginBottom:4 },
-  pageSubtitle:{ fontSize:12, color:"#484848", letterSpacing:"0.05em", marginBottom:28 },
+  pageSubtitle:{ fontSize:12, color:"#555", letterSpacing:"0.05em", marginBottom:28 },
   statsRow:{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:2, marginBottom:28 },
   statBox:{ background:"#141414", padding:"18px 12px", textAlign:"center", borderRadius:4 },
-  statNum:{ fontSize:30, fontWeight:700 }, statLabel:{ fontSize:10, color:"#484848", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
+  statNum:{ fontSize:30, fontWeight:700 }, statLabel:{ fontSize:10, color:"#555", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
   detailRow:{ borderBottom:"1px solid #131313", paddingBottom:10, marginBottom:2, cursor:"pointer" },
   detailTop:{ display:"flex", alignItems:"center", gap:12, paddingTop:10 },
-  detailName:{ flex:1, color:"#bbb", fontSize:14 }, detailGrade:{ fontSize:12, color:"#484848", fontWeight:600 },
+  detailName:{ flex:1, color:"#bbb", fontSize:14 }, detailGrade:{ fontSize:12, color:"#555", fontWeight:600 },
   tagPills:{ display:"flex", flexWrap:"wrap", gap:6, marginLeft:30, marginTop:6 },
   pill:{ fontSize:10, color:"#555", background:"#181818", padding:"3px 8px", borderRadius:10, letterSpacing:"0.04em" },
   noteChip:{ marginLeft:30, marginTop:5, fontSize:12, color:"#555", lineHeight:1.5 },
@@ -707,30 +755,28 @@ const S = {
   suggestions:{ position:"absolute", top:"100%", left:0, right:0, background:"#161616", border:"1px solid #222", borderTop:"none", borderRadius:"0 0 4px 4px", zIndex:10 },
   suggestionItem:{ padding:"12px 16px", fontSize:14, color:"#bbb", cursor:"pointer", borderBottom:"1px solid #1e1e1e" },
   flash:{ position:"fixed", top:0, left:"50%", transform:"translateX(-50%)", padding:"11px 24px", borderRadius:"0 0 8px 8px", fontSize:13, fontWeight:600, letterSpacing:"0.06em", zIndex:100, fontFamily:"'DM Mono',monospace", maxWidth:390, width:"100%", textAlign:"center" },
-  sessionHeader:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"18px 24px 14px", borderBottom:"1px solid #161616" },
-  sessionLocation:{ fontSize:17, fontWeight:700, letterSpacing:"0.04em", marginBottom:3 }, sessionMeta:{ fontSize:12, color:"#444" },
-  homeIconBtn:{ background:"none", border:"1px solid #222", color:"#444", padding:"7px 12px", borderRadius:4, fontSize:16, cursor:"pointer", fontFamily:"'DM Mono',monospace" },
-  endSessionBtn:{ background:"#f0ede8", color:"#0e0e0e", border:"none", padding:"10px 16px", borderRadius:4, fontSize:11, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
-  nameSection:{ padding:"24px 24px 0" },
-  nameInput:{ width:"100%", background:"transparent", border:"none", borderBottom:"1px solid #1e1e1e", padding:"0 0 12px", color:"#f0ede8", fontSize:21, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", caretColor:"#f0ede8" },
-  gradeSection:{ padding:"28px 0 0" },
-  gradeLabel:{ fontSize:10, color:"#444", letterSpacing:"0.2em", marginBottom:12, textTransform:"uppercase", paddingLeft:24 },
-  outcomeBtn:{ padding:"18px 8px", border:"none", borderRadius:6, fontSize:12, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace", transition:"opacity 0.12s" },
-  recentLogs:{ padding:"18px 24px 0" },
+  topBar:{ display:"flex", alignItems:"center", padding:"16px 16px 14px", borderBottom:"1px solid #161616" },
+  topBarIconBtn:{ background:"#1a1a1a", border:"1px solid #2a2a2a", color:"#f0ede8", width:38, height:38, borderRadius:6, fontSize:16, cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
+  sessionLocation:{ fontSize:16, fontWeight:700, letterSpacing:"0.04em", color:"#f0ede8" },
+  sessionMeta:{ fontSize:12, marginTop:2 },
+  outcomeBtn:{ padding:"18px 8px", border:"none", borderRadius:6, fontSize:12, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
+  recentLogs:{ padding:"20px 24px 120px" },
   logRowWrap:{ borderBottom:"1px solid #131313" },
   logRow:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"9px 0 7px", cursor:"pointer" },
   logName:{ fontSize:13, color:"#bbb" }, logMeta:{ fontSize:11, color:"#484848", marginTop:2 },
   addPromptActive:{ fontSize:11, color:"#3a6a3a", marginTop:2, letterSpacing:"0.05em" },
   addPromptFaded:{ fontSize:11, color:"#222", marginTop:2, letterSpacing:"0.05em" },
-  logGrade:{ fontSize:12, color:"#484848", fontWeight:600, flexShrink:0, marginLeft:8 },
-  overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.9)", display:"flex", alignItems:"flex-end", zIndex:200 },
+  logGrade:{ fontSize:12, color:"#555", fontWeight:600, flexShrink:0, marginLeft:8 },
+  endSessionBar:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"12px 24px 32px", background:"linear-gradient(transparent, #0e0e0e 30%)", boxSizing:"border-box" },
+  endSessionBtn:{ width:"100%", padding:18, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:6, fontSize:13, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
+  overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"flex-end", zIndex:200 },
   sheet:{ background:"#131313", borderTop:"1px solid #222", borderRadius:"16px 16px 0 0", padding:"20px 24px 48px", width:"100%", maxWidth:390, margin:"0 auto", boxSizing:"border-box", maxHeight:"88vh", overflowY:"auto" },
   sheetHandle:{ width:36, height:3, background:"#2a2a2a", borderRadius:2, margin:"0 auto 20px" },
   sheetTitle:{ fontSize:18, fontWeight:700 },
   sheetNameInput:{ width:"100%", background:"transparent", border:"none", borderBottom:"1px solid #3a3a3a", color:"#f0ede8", fontSize:18, fontWeight:700, fontFamily:"'DM Mono',monospace", outline:"none", padding:"0 0 4px", caretColor:"#f0ede8", boxSizing:"border-box" },
   gradeEditBtn:{ fontSize:13, color:"#888", fontWeight:600, background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0, whiteSpace:"nowrap" },
   iconBtn:{ background:"none", border:"none", color:"#333", fontSize:13, cursor:"pointer", padding:"0 4px", fontFamily:"'DM Mono',monospace", flexShrink:0 },
-  tagSection:{ marginTop:20 }, tagLabel:{ fontSize:10, color:"#383838", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 },
+  tagSection:{ marginTop:20 }, tagLabel:{ fontSize:10, color:"#444", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 },
   chipRow:{ display:"flex", flexWrap:"wrap", gap:8 },
   noteInput:{ width:"100%", background:"#1a1a1a", border:"1px solid #252525", borderRadius:4, padding:"12px 14px", color:"#f0ede8", fontSize:13, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7, marginTop:4 },
   sheetBtns:{ display:"flex", gap:10, marginTop:20 },
