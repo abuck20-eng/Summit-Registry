@@ -534,7 +534,7 @@ export default function App({ user, onSignOut }) {
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11, letterSpacing:"0.15em", marginBottom:6, color: latestIsActive ? "#4caf50" : "#888" }}>
-                    {latestIsActive ? "● IN PROGRESS" : "LATEST SESSION"}
+                    {latestIsActive ? "● IN PROGRESS" : "LAST SESSION"}
                   </div>
                   <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{latestSession.location}</div>
                   <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>
@@ -571,7 +571,11 @@ export default function App({ user, onSignOut }) {
               ))}
             </div>
           ) : !latestSession && (
-            <div style={S.emptyState}><div style={S.emptyIcon}>⬡</div><div style={S.emptyText}>no sessions yet</div></div>
+            <div style={S.emptyState}>
+              <div style={{ fontSize:48, marginBottom:8 }}>⬡</div>
+              <div style={{ fontSize:16, fontWeight:700, color:"#f0ede8", letterSpacing:"0.04em" }}>no sessions yet</div>
+              <div style={{ fontSize:13, color:"#666", textAlign:"center", lineHeight:1.6, maxWidth:240, marginTop:4 }}>start your first session to begin tracking your climbing</div>
+            </div>
           )}
         </div>
         <div style={S.floatingBtn}>
@@ -669,9 +673,9 @@ export default function App({ user, onSignOut }) {
           <button style={S.topBarIconBtn} onClick={() => { setNewLocation(activeSession?.location||""); setEditingLocation(true); }}>✎</button>
         </div>
 
-        {/* Climb name — boxed, always visible, glows when active/focused */}
-        <div style={{ padding:"22px 24px 0" }}>
-          <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8 }}>
+        {/* Climb name — boxed, always visible */}
+        <div style={{ padding:"28px 24px 0" }}>
+          <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:10 }}>
             {isOutdoor ? "climb name — required" : "climb name — optional"}
           </div>
           <input
@@ -683,13 +687,13 @@ export default function App({ user, onSignOut }) {
         </div>
 
         {/* Grade */}
-        <div style={{ padding:"24px 0 0" }}>
-          <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:12, paddingLeft:24 }}>grade</div>
+        <div style={{ padding:"32px 0 0" }}>
+          <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:14, paddingLeft:24 }}>grade</div>
           <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} />
         </div>
 
         {/* Outcome buttons */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, padding:"22px 24px 0" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, padding:"28px 24px 0" }}>
           <SentButton disabled={!canLog} onSent={handleSent} onFirstGo={handleFirstGo} />
           <button style={{...S.outcomeBtn, background:"#150f00", color: canLog?"#e07820":"#2a1a08", border:`1px solid ${canLog?"#3a2010":"#1e1608"}`, opacity:1, transition:"all 0.15s"}}
             onClick={() => canLog && commitLog("project")}>PROJECT</button>
@@ -720,21 +724,56 @@ export default function App({ user, onSignOut }) {
     const vSends   = vs.logs.filter(l=>l.outcome==="sent");
     const vFlashes = vs.logs.filter(l=>l.first_go===true);
     const vRepeats = vs.logs.filter(l=>l.outcome==="repeat");
+    const vProjects = vs.logs.filter(l=>l.outcome==="project");
+    const hardest = vSends.length > 0 ? vSends.reduce((a,b) => gradeSort(a.grade, vs.discipline) >= gradeSort(b.grade, vs.discipline) ? a : b) : null;
     return (
       <div style={S.app}><Sheet />
-        <div style={S.pageContainer}>
-          <div style={{fontSize:44,color:"#4caf50",marginBottom:14}}>✓</div>
-          <div style={S.pageTitle}>{vs.location}</div>
-          <div style={S.pageSubtitle}>{new Date(vs.started_at).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
+        <div style={{ padding:"52px 24px 80px" }}>
+
+          {/* Header */}
+          <div style={{ textAlign:"center", marginBottom:36 }}>
+            <div style={{ fontSize:52, marginBottom:12 }}>✓</div>
+            <div style={{ fontSize:28, fontWeight:700, letterSpacing:"0.04em", marginBottom:6 }}>{vs.location}</div>
+            <div style={{ fontSize:13, color:"#888" }}>{new Date(vs.started_at).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
+          </div>
+
+          {/* Big stat row */}
           <div style={S.statsRow}>
             <div style={S.statBox}><div style={S.statNum}>{vs.logs.length}</div><div style={S.statLabel}>climbs</div></div>
             <div style={S.statBox}><div style={S.statNum}>{vSends.length}</div><div style={S.statLabel}>sends</div></div>
             <div style={S.statBox}><div style={S.statNum}>{vFlashes.length}</div><div style={S.statLabel}>⚡ first go</div></div>
           </div>
-          {vRepeats.length > 0 && <div style={{ fontSize:12, color:"#4a9fd4", marginBottom:20 }}>↺ {vRepeats.length} repeat{vRepeats.length>1?"s":""}</div>}
-          <div style={S.sectionLabel}>climbs</div>
+
+          {/* Highlights */}
+          <div style={{ display:"flex", gap:8, marginBottom:32, flexWrap:"wrap" }}>
+            {hardest && (
+              <div style={{ background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:6, padding:"10px 16px", flex:1 }}>
+                <div style={{ fontSize:10, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>hardest send</div>
+                <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{hardest.grade}</div>
+                {hardest.name && <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{hardest.name}</div>}
+              </div>
+            )}
+            {vRepeats.length > 0 && (
+              <div style={{ background:"#06111a", border:"1px solid #1a4a6a", borderRadius:6, padding:"10px 16px", flex:1 }}>
+                <div style={{ fontSize:10, color:"#4a9fd4", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>repeats</div>
+                <div style={{ fontSize:20, fontWeight:700, color:"#4a9fd4" }}>{vRepeats.length}</div>
+              </div>
+            )}
+            {vProjects.length > 0 && (
+              <div style={{ background:"#150f00", border:"1px solid #3a2010", borderRadius:6, padding:"10px 16px", flex:1 }}>
+                <div style={{ fontSize:10, color:"#e07820", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>projects</div>
+                <div style={{ fontSize:20, fontWeight:700, color:"#e07820" }}>{vProjects.length}</div>
+              </div>
+            )}
+          </div>
+
+          {/* Climb list */}
+          <div style={S.sectionLabel}>climbs this session</div>
           {vs.logs.map(l => <LogDetailRow key={l.id} log={l} onTap={() => openSheet(l)} />)}
-          <button style={{...S.startBtn,marginTop:32,marginBottom:48}} onClick={() => {setViewingSession(null);setScreen("home");loadSessions();}}>DONE</button>
+
+          {/* Done button */}
+          <button style={{...S.startBtn, marginTop:36, marginBottom:16}} onClick={() => {setViewingSession(null);setScreen("home");loadSessions();}}>DONE</button>
+          <button style={S.signOutBtn} onClick={() => { setScreen("sessionDetail"); }}>← back to session</button>
         </div>
       </div>
     );
