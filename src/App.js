@@ -28,9 +28,9 @@ function GradeSlider({ grades, value, onChange }) {
   return (
     <div style={{ padding:"0 24px", userSelect:"none" }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-        <span style={{ fontSize:11, color:"#555", letterSpacing:"0.1em" }}>{grades[0]}</span>
-        <span style={{ fontSize:34, fontWeight:700, color: value ? "#f0ede8" : "#3a3a3a", transition:"color 0.12s" }}>{value || "—"}</span>
-        <span style={{ fontSize:11, color:"#555", letterSpacing:"0.1em" }}>{grades[grades.length-1]}</span>
+        <span style={{ fontSize:11, color:"#888", letterSpacing:"0.1em" }}>{grades[0]}</span>
+        <span style={{ fontSize:34, fontWeight:700, color: value ? "#f0ede8" : "#555", transition:"color 0.12s" }}>{value || "—"}</span>
+        <span style={{ fontSize:11, color:"#888", letterSpacing:"0.1em" }}>{grades[grades.length-1]}</span>
       </div>
       <div ref={trackRef} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp}
         style={{ position:"relative", height:52, display:"flex", alignItems:"center", cursor:"pointer", touchAction:"none" }}>
@@ -45,7 +45,7 @@ function GradeSlider({ grades, value, onChange }) {
 
 function Chip({ label, selected, onToggle, accent }) {
   return (
-    <button onClick={onToggle} style={{ padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:600, letterSpacing:"0.04em", cursor:"pointer", fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s", flexShrink:0, background: selected ? (accent || "#f0ede8") : "#1e1e1e", color: selected ? (accent ? "#fff" : "#0e0e0e") : "#484848" }}>{label}</button>
+    <button onClick={onToggle} style={{ padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:600, letterSpacing:"0.04em", cursor:"pointer", fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s", flexShrink:0, background: selected ? (accent || "#f0ede8") : "#1e1e1e", color: selected ? (accent ? "#fff" : "#0e0e0e") : "#888" }}>{label}</button>
   );
 }
 
@@ -490,7 +490,7 @@ export default function App({ user, onSignOut }) {
                 <div>
                   <div style={{ fontSize:11, color:"#4caf50", letterSpacing:"0.15em", marginBottom:6 }}>● IN PROGRESS</div>
                   <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{activeSession.location}</div>
-                  <div style={{ fontSize:13, color:"#888", marginTop:4 }}>
+                  <div style={{ fontSize:13, color:"#aaa", marginTop:4 }}>
                     {activeSession.discipline} · {logs.length} logged · {sends.length} sends{flashes.length>0?` · ${flashes.length} ⚡`:""}
                   </div>
                 </div>
@@ -602,7 +602,7 @@ export default function App({ user, onSignOut }) {
           <div style={{ flex:1, textAlign:"center", padding:"0 8px" }}>
             <div style={S.sessionLocation}>{activeSession?.location}</div>
             <div style={S.sessionMeta}>
-              <span style={{color:"#777"}}>{logs.length} logged</span>
+              <span style={{color:"#aaa"}}>{logs.length} logged</span>
               {sends.length > 0 && <span style={{color:"#4caf50"}}> · {sends.length} sent</span>}
               {repeats.length > 0 && <span style={{color:"#4a9fd4"}}> · {repeats.length} ↺</span>}
               {flashes.length > 0 && <span style={{color:"#c07820"}}> · {flashes.length} ⚡</span>}
@@ -613,7 +613,7 @@ export default function App({ user, onSignOut }) {
 
         {/* Climb name — boxed, always visible, glows when active/focused */}
         <div style={{ padding:"22px 24px 0" }}>
-          <div style={{ fontSize:10, color:"#666", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8 }}>
+          <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8 }}>
             {isOutdoor ? "climb name — required" : "climb name — optional"}
           </div>
           <input
@@ -626,7 +626,7 @@ export default function App({ user, onSignOut }) {
 
         {/* Grade */}
         <div style={{ padding:"24px 0 0" }}>
-          <div style={{ fontSize:10, color:"#666", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:12, paddingLeft:24 }}>grade</div>
+          <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:12, paddingLeft:24 }}>grade</div>
           <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} />
         </div>
 
@@ -688,35 +688,35 @@ const S = {
   homeContainer:{ padding:"56px 24px 160px", display:"flex", flexDirection:"column", minHeight:"100vh" },
   homeTop:{ marginBottom:32 },
   logo:{ fontSize:40, fontWeight:700, letterSpacing:"0.15em" },
-  tagline:{ fontSize:12, color:"#555", letterSpacing:"0.08em", marginTop:4 },
+  tagline:{ fontSize:12, color:"#888", letterSpacing:"0.08em", marginTop:4 },
   activeCard:{ background:"#0d1f0d", border:"1px solid #1e3a1e", borderRadius:8, padding:"18px 20px", marginBottom:28, cursor:"pointer" },
   endBtnSmall:{ background:"none", border:"1px solid #2a4a2a", color:"#4caf50", padding:"7px 14px", borderRadius:4, fontSize:11, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0 },
-  emptyState:{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12, color:"#333" },
+  emptyState:{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12, color:"#666" },
   emptyIcon:{ fontSize:52 }, emptyText:{ fontSize:13, letterSpacing:"0.12em" },
-  sectionLabel:{ fontSize:10, color:"#666", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:4, paddingTop:4 },
+  sectionLabel:{ fontSize:10, color:"#888", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:4, paddingTop:4 },
   sessionList:{ flex:1, marginBottom:16 },
   sessionCard:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 0", borderBottom:"1px solid #161616", cursor:"pointer" },
   sessionCardLocation:{ fontSize:16, fontWeight:600, color:"#e0ddd8" },
-  sessionCardMeta:{ fontSize:12, color:"#666", marginTop:3 },
-  sessionCardDate:{ fontSize:12, color:"#444" },
-  trashBtn:{ background:"none", border:"none", color:"#333", fontSize:12, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace", letterSpacing:"0.04em" },
+  sessionCardMeta:{ fontSize:12, color:"#999", marginTop:3 },
+  sessionCardDate:{ fontSize:12, color:"#888" },
+  trashBtn:{ background:"none", border:"none", color:"#666", fontSize:12, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace", letterSpacing:"0.04em" },
   floatingBtn:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"16px 24px 36px", background:"linear-gradient(transparent, #0e0e0e 35%)", boxSizing:"border-box" },
   startBtn:{ width:"100%", padding:20, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"block" },
-  signOutBtn:{ width:"100%", padding:10, background:"transparent", color:"#333", border:"none", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:8 },
+  signOutBtn:{ width:"100%", padding:10, background:"transparent", color:"#777", border:"none", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:8 },
   pageContainer:{ padding:"52px 24px 48px", minHeight:"100vh", display:"flex", flexDirection:"column" },
-  backBtn:{ background:"none", border:"none", color:"#888", fontSize:22, cursor:"pointer", padding:0, fontFamily:"'DM Mono',monospace", alignSelf:"flex-start" },
+  backBtn:{ background:"none", border:"none", color:"#aaa", fontSize:22, cursor:"pointer", padding:0, fontFamily:"'DM Mono',monospace", alignSelf:"flex-start" },
   pageTitle:{ fontSize:26, fontWeight:700, letterSpacing:"0.04em", marginBottom:4 },
-  pageSubtitle:{ fontSize:12, color:"#555", letterSpacing:"0.05em", marginBottom:28 },
+  pageSubtitle:{ fontSize:12, color:"#888", letterSpacing:"0.05em", marginBottom:28 },
   statsRow:{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:2, marginBottom:28 },
   statBox:{ background:"#141414", padding:"18px 12px", textAlign:"center", borderRadius:4 },
-  statNum:{ fontSize:30, fontWeight:700 }, statLabel:{ fontSize:10, color:"#555", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
-  detailRow:{ borderBottom:"1px solid #131313", paddingBottom:10, marginBottom:2, cursor:"pointer" },
+  statNum:{ fontSize:30, fontWeight:700 }, statLabel:{ fontSize:10, color:"#888", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
+  detailRow:{ borderBottom:"1px solid #1a1a1a", paddingBottom:10, marginBottom:2, cursor:"pointer" },
   detailTop:{ display:"flex", alignItems:"center", gap:12, paddingTop:10 },
-  detailName:{ flex:1, color:"#ccc", fontSize:14 }, detailGrade:{ fontSize:12, color:"#555", fontWeight:600 },
+  detailName:{ flex:1, color:"#ddd", fontSize:14 }, detailGrade:{ fontSize:12, color:"#999", fontWeight:600 },
   tagPills:{ display:"flex", flexWrap:"wrap", gap:6, marginLeft:30, marginTop:6 },
-  pill:{ fontSize:10, color:"#555", background:"#181818", padding:"3px 8px", borderRadius:10, letterSpacing:"0.04em" },
-  noteChip:{ marginLeft:30, marginTop:5, fontSize:12, color:"#555", lineHeight:1.5 },
-  addChipDetail:{ marginLeft:30, marginTop:5, fontSize:11, color:"#4a7a4a", letterSpacing:"0.06em" },
+  pill:{ fontSize:10, color:"#888", background:"#1e1e1e", padding:"3px 8px", borderRadius:10, letterSpacing:"0.04em" },
+  noteChip:{ marginLeft:30, marginTop:5, fontSize:12, color:"#888", lineHeight:1.5 },
+  addChipDetail:{ marginLeft:30, marginTop:5, fontSize:11, color:"#5aaa5a", letterSpacing:"0.06em", fontWeight:600 },
   setupQ:{ fontSize:26, fontWeight:600, marginBottom:36, lineHeight:1.3 },
   setupGrid:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 },
   setupBtn:{ background:"#141414", border:"1px solid #222", borderRadius:8, padding:"28px 16px", color:"#f0ede8", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.05em", display:"flex", flexDirection:"column", alignItems:"center", gap:14 },
@@ -734,10 +734,10 @@ const S = {
   logRowWrap:{ borderBottom:"1px solid #131313", borderRadius:4 },
   logRow:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"10px 0 6px", cursor:"pointer" },
   logName:{ fontSize:13, color:"#ccc" },
-  logMeta:{ fontSize:11, color:"#555", marginTop:2 },
+  logMeta:{ fontSize:11, color:"#888", marginTop:2 },
   addPromptActive:{ fontSize:12, color:"#5aaa5a", marginTop:3, letterSpacing:"0.04em", fontWeight:600 },
-  addPromptFaded:{ fontSize:12, color:"#3a5a3a", marginTop:3, letterSpacing:"0.04em" },
-  logGrade:{ fontSize:12, color:"#666", fontWeight:600, flexShrink:0, marginLeft:8 },
+  addPromptFaded:{ fontSize:12, color:"#4a7a4a", marginTop:3, letterSpacing:"0.04em" },
+  logGrade:{ fontSize:13, color:"#aaa", fontWeight:600, flexShrink:0, marginLeft:8 },
   endSessionBar:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"12px 24px 32px", background:"linear-gradient(transparent, #0e0e0e 30%)", boxSizing:"border-box" },
   endSessionBtn:{ width:"100%", padding:18, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:6, fontSize:13, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
   overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"flex-end", zIndex:200 },
@@ -745,11 +745,11 @@ const S = {
   sheetHandle:{ width:36, height:3, background:"#2a2a2a", borderRadius:2, margin:"0 auto 20px" },
   sheetTitle:{ fontSize:18, fontWeight:700 },
   sheetNameInput:{ width:"100%", background:"transparent", border:"none", borderBottom:"1px solid #3a3a3a", color:"#f0ede8", fontSize:18, fontWeight:700, fontFamily:"'DM Mono',monospace", outline:"none", padding:"0 0 4px", caretColor:"#f0ede8", boxSizing:"border-box" },
-  gradeEditBtn:{ fontSize:13, color:"#888", fontWeight:600, background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0, whiteSpace:"nowrap" },
-  tagSection:{ marginTop:20 }, tagLabel:{ fontSize:10, color:"#444", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 },
+  gradeEditBtn:{ fontSize:13, color:"#bbb", fontWeight:600, background:"#1a1a1a", border:"1px solid #333", borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0, whiteSpace:"nowrap" },
+  tagSection:{ marginTop:20 }, tagLabel:{ fontSize:10, color:"#888", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 },
   chipRow:{ display:"flex", flexWrap:"wrap", gap:8 },
-  noteInput:{ width:"100%", background:"#1a1a1a", border:"1px solid #252525", borderRadius:4, padding:"12px 14px", color:"#f0ede8", fontSize:13, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7, marginTop:4 },
+  noteInput:{ width:"100%", background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:4, padding:"12px 14px", color:"#f0ede8", fontSize:13, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7, marginTop:4 },
   sheetBtns:{ display:"flex", gap:10, marginTop:20 },
-  btnSecondary:{ flex:1, padding:14, background:"transparent", border:"1px solid #222", borderRadius:4, color:"#484848", fontSize:12, fontWeight:600, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
+  btnSecondary:{ flex:1, padding:14, background:"transparent", border:"1px solid #333", borderRadius:4, color:"#888", fontSize:12, fontWeight:600, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
   btnPrimary:{ flex:2, padding:14, background:"#f0ede8", border:"none", borderRadius:4, color:"#0e0e0e", fontSize:12, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
 };
