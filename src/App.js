@@ -416,6 +416,30 @@ export default function App({ user, onSignOut }) {
     if (!String(id).startsWith('temp-')) await deleteClimbFromDb(id);
   };
 
+  const reopenSession = async (session) => {
+    // If a different session is already active, warn first
+    if (activeSession && activeSession.id !== session.id) {
+      const confirmed = window.confirm(`You have an active session at ${activeSession.location}. Switch to ${session.location} instead?`);
+      if (!confirmed) return;
+      // Close the current active session first
+      await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
+      const closedSession = {...activeSession, logs, ended_at: new Date().toISOString()};
+      setAllSessions(prev => prev.map(s => s.id===activeSession.id ? closedSession : s));
+    }
+    // Reopen: clear ended_at so it becomes active again
+    await supabase.from('sessions').update({ ended_at: null }).eq('id', session.id);
+    const { data: climbs } = await supabase.from('climbs').select('*').eq('session_id', session.id).order('logged_at', { ascending: false });
+    const reopened = {...session, ended_at: null, logs: climbs || []};
+    setActiveSession(reopened);
+    setLogs(climbs || []);
+    setEnvironment(session.environment);
+    setDiscipline(session.discipline);
+    setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
+    setAllSessions(prev => prev.map(s => s.id===session.id ? reopened : s));
+    setViewingSession(null);
+    setScreen("logging");
+  };
+
   const startSetup = () => { setSetupStep(0); setEnvironment(null); setDiscipline(null); setLocation(""); setScreen("setup"); };
 
   const pick = (c) => {
@@ -479,31 +503,61 @@ export default function App({ user, onSignOut }) {
   // HOME
   if (screen==="home") {
     const pastSessions = allSessions.filter(s => s.ended_at);
+    const latestSession = allSessions[0]; // most recent started_at (sorted desc)
+    const latestIsActive = latestSession && !latestSession.ended_at;
+    const latestIsEnded = latestSession && !!latestSession.ended_at;
     return (
       <div style={S.app}>
         <Sheet /><DeleteSessionModal />
         <div style={S.homeContainer}>
           <div style={S.homeTop}><div style={S.logo}>SUMMIT</div><div style={S.tagline}>your climbing registry</div></div>
-          {activeSession && (
-            <div style={S.activeCard} onClick={() => setScreen("logging")}>
+
+          {/* Active session card — only if active is NOT the latest (i.e. it's a reopened old one) */}
+          {activeSession && latestSession && activeSession.id !== latestSession.id && (
+            <div style={{...S.activeCard, marginBottom:12}} onClick={() => setScreen("logging")}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                 <div>
                   <div style={{ fontSize:11, color:"#4caf50", letterSpacing:"0.15em", marginBottom:6 }}>● IN PROGRESS</div>
-                  <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{activeSession.location}</div>
-                  <div style={{ fontSize:13, color:"#aaa", marginTop:4 }}>
-                    {activeSession.discipline} · {logs.length} logged · {sends.length} sends{flashes.length>0?` · ${flashes.length} ⚡`:""}
-                  </div>
+                  <div style={{ fontSize:18, fontWeight:700, color:"#f0ede8" }}>{activeSession.location}</div>
+                  <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>{new Date(activeSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
+                  <div style={{ fontSize:12, color:"#aaa", marginTop:3 }}>{activeSession.discipline} · {logs.length} logged · {sends.length} sends</div>
                 </div>
                 <button style={S.endBtnSmall} onClick={e => { e.stopPropagation(); endSession(); }}>END</button>
               </div>
             </div>
           )}
+
+          {/* Latest Session card — always pinned */}
+          {latestSession && (
+            <div style={latestIsActive ? S.activeCard : S.latestCard}
+              onClick={() => latestIsActive ? setScreen("logging") : (setViewingSession(latestSession), setScreen("sessionDetail"))}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, letterSpacing:"0.15em", marginBottom:6, color: latestIsActive ? "#4caf50" : "#888" }}>
+                    {latestIsActive ? "● IN PROGRESS" : "LATEST SESSION"}
+                  </div>
+                  <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{latestSession.location}</div>
+                  <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>
+                    {new Date(latestSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}
+                  </div>
+                  <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>
+                    {latestSession.discipline} · {latestIsActive ? `${logs.length} logged · ${sends.length} sends${flashes.length>0?` · ${flashes.length} ⚡`:""}` : `${(latestSession.logs||[]).filter(l=>l.outcome==="sent").length} sends · ${(latestSession.logs||[]).length} climbs`}
+                  </div>
+                </div>
+                {latestIsActive
+                  ? <button style={S.endBtnSmall} onClick={e => { e.stopPropagation(); endSession(); }}>END</button>
+                  : <div style={{ fontSize:22, color:"#444", alignSelf:"center" }}>›</div>
+                }
+              </div>
+            </div>
+          )}
+
           {loadingSessions ? (
-            <div style={S.emptyState}><div style={{color:"#444",fontSize:12,letterSpacing:"0.1em"}}>loading...</div></div>
+            <div style={S.emptyState}><div style={{color:"#666",fontSize:12,letterSpacing:"0.1em"}}>loading...</div></div>
           ) : pastSessions.length > 0 ? (
             <div style={S.sessionList}>
               <div style={S.sectionLabel}>sessions</div>
-              {pastSessions.map(s => (
+              {pastSessions.filter(s => s.id !== latestSession?.id).map(s => (
                 <div key={s.id} style={S.sessionCard}>
                   <div style={{ flex:1 }} onClick={() => {setViewingSession(s);setScreen("sessionDetail");}}>
                     <div style={S.sessionCardLocation}>{s.location}</div>
@@ -516,7 +570,7 @@ export default function App({ user, onSignOut }) {
                 </div>
               ))}
             </div>
-          ) : !activeSession && (
+          ) : !latestSession && (
             <div style={S.emptyState}><div style={S.emptyIcon}>⬡</div><div style={S.emptyText}>no sessions yet</div></div>
           )}
         </div>
@@ -532,6 +586,7 @@ export default function App({ user, onSignOut }) {
   if (screen==="sessionDetail" && viewingSession) {
     const s = viewingSession;
     const sf = (s.logs||[]).filter(l=>l.first_go===true);
+    const isThisActive = activeSession?.id === s.id;
     return (
       <div style={S.app}><Sheet /><DeleteSessionModal />
         <div style={S.pageContainer}>
@@ -546,6 +601,9 @@ export default function App({ user, onSignOut }) {
             <div style={S.statBox}><div style={S.statNum}>{(s.logs||[]).filter(l=>l.outcome==="sent").length}</div><div style={S.statLabel}>sends</div></div>
             <div style={S.statBox}><div style={S.statNum}>{sf.length}</div><div style={S.statLabel}>⚡ first go</div></div>
           </div>
+          <button style={S.addClimbBtn} onClick={() => reopenSession(s)}>
+            {isThisActive ? "● continue logging" : "+ add climb"}
+          </button>
           <div style={S.sectionLabel}>climbs</div>
           {(s.logs||[]).map(l => <LogDetailRow key={l.id} log={l} onTap={() => openSheet(l)} />)}
         </div>
@@ -689,7 +747,9 @@ const S = {
   homeTop:{ marginBottom:32 },
   logo:{ fontSize:40, fontWeight:700, letterSpacing:"0.15em" },
   tagline:{ fontSize:12, color:"#888", letterSpacing:"0.08em", marginTop:4 },
-  activeCard:{ background:"#0d1f0d", border:"1px solid #1e3a1e", borderRadius:8, padding:"18px 20px", marginBottom:28, cursor:"pointer" },
+  activeCard:{ background:"#0d1f0d", border:"1px solid #1e3a1e", borderRadius:8, padding:"18px 20px", marginBottom:16, cursor:"pointer" },
+  latestCard:{ background:"#161616", border:"1px solid #2a2a2a", borderRadius:8, padding:"18px 20px", marginBottom:16, cursor:"pointer" },
+  addClimbBtn:{ width:"100%", padding:"13px 0", background:"#161616", border:"1px solid #2a2a2a", borderRadius:6, color:"#f0ede8", fontSize:12, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:24, textAlign:"center" },
   endBtnSmall:{ background:"none", border:"1px solid #2a4a2a", color:"#4caf50", padding:"7px 14px", borderRadius:4, fontSize:11, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0 },
   emptyState:{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12, color:"#666" },
   emptyIcon:{ fontSize:52 }, emptyText:{ fontSize:13, letterSpacing:"0.12em" },
@@ -698,7 +758,7 @@ const S = {
   sessionCard:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 0", borderBottom:"1px solid #161616", cursor:"pointer" },
   sessionCardLocation:{ fontSize:16, fontWeight:600, color:"#e0ddd8" },
   sessionCardMeta:{ fontSize:12, color:"#999", marginTop:3 },
-  sessionCardDate:{ fontSize:12, color:"#888" },
+  sessionCardDate:{ fontSize:12, color:"#bbb", fontWeight:600 },
   trashBtn:{ background:"none", border:"none", color:"#666", fontSize:12, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace", letterSpacing:"0.04em" },
   floatingBtn:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"16px 24px 36px", background:"linear-gradient(transparent, #0e0e0e 35%)", boxSizing:"border-box" },
   startBtn:{ width:"100%", padding:20, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"block" },
