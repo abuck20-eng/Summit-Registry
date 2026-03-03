@@ -464,7 +464,10 @@ export default function App({ user, onSignOut }) {
 
   const [sessionRating, setSessionRating] = useState(null);
   const [sessionNote, setSessionNote] = useState("");
-  const [isAddingClimbs, setIsAddingClimbs] = useState(false); // lightweight add mode, no rating flow
+  const [isAddingClimbs, setIsAddingClimbs] = useState(false);
+  const [editingRating, setEditingRating] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [localNote, setLocalNote] = useState("");
 
   const endSession = async () => {
     if (logs.length === 0) {
@@ -629,10 +632,6 @@ export default function App({ user, onSignOut }) {
       { value:4, label:"Fresh",     color:"#4caf50", bg:"#0d1f0d" },
       { value:5, label:"Locked In", color:"#7eb8f0", bg:"#06111a" },
     ];
-    const [editingRating, setEditingRating] = useState(false);
-    const [editingNote, setEditingNote] = useState(false);
-    const [localNote, setLocalNote] = useState(s.session_note || "");
-
     const saveRating = async (val) => {
       await supabase.from('sessions').update({ session_rating: val }).eq('id', s.id);
       const updated = {...s, session_rating: val};
