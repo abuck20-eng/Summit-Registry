@@ -416,28 +416,29 @@ export default function App({ user, onSignOut }) {
     if (!String(id).startsWith('temp-')) await deleteClimbFromDb(id);
   };
 
-  const reopenSession = async (session) => {
-    // If a different session is already active, warn first
-    if (activeSession && activeSession.id !== session.id) {
-      const confirmed = window.confirm(`You have an active session at ${activeSession.location}. Switch to ${session.location} instead?`);
-      if (!confirmed) return;
-      // Close the current active session first
-      await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
-      const closedSession = {...activeSession, logs, ended_at: new Date().toISOString()};
-      setAllSessions(prev => prev.map(s => s.id===activeSession.id ? closedSession : s));
-    }
-    // Reopen: clear ended_at so it becomes active again
-    await supabase.from('sessions').update({ ended_at: null }).eq('id', session.id);
+  const addClimbsTo = async (session) => {
+    // Lightweight mode — don't touch ended_at, just load the session for logging
     const { data: climbs } = await supabase.from('climbs').select('*').eq('session_id', session.id).order('logged_at', { ascending: false });
-    const reopened = {...session, ended_at: null, logs: climbs || []};
-    setActiveSession(reopened);
+    setActiveSession(session);
     setLogs(climbs || []);
     setEnvironment(session.environment);
     setDiscipline(session.discipline);
     setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
-    setAllSessions(prev => prev.map(s => s.id===session.id ? reopened : s));
-    setViewingSession(null);
+    setIsAddingClimbs(true);
+    setViewingSession(session);
     setScreen("logging");
+  };
+
+  const doneAddingClimbs = async () => {
+    // Refresh the session's climbs and go back to session detail
+    clearTimeout(noteTimerRef.current); setNoteWindowId(null);
+    const { data: climbs } = await supabase.from('climbs').select('*').eq('session_id', activeSession.id).order('logged_at', { ascending: false });
+    const updated = {...viewingSession, logs: climbs || []};
+    setViewingSession(updated);
+    setAllSessions(prev => prev.map(s => s.id===activeSession.id ? updated : s));
+    setActiveSession(null); setLogs([]);
+    setIsAddingClimbs(false);
+    setScreen("sessionDetail");
   };
 
   const startSetup = () => { setSetupStep(0); setEnvironment(null); setDiscipline(null); setLocation(""); setScreen("setup"); };
@@ -463,7 +464,7 @@ export default function App({ user, onSignOut }) {
 
   const [sessionRating, setSessionRating] = useState(null);
   const [sessionNote, setSessionNote] = useState("");
-  const [ratingSource, setRatingSource] = useState("logging"); // "logging" | "summary"
+  const [isAddingClimbs, setIsAddingClimbs] = useState(false); // lightweight add mode, no rating flow
 
   const endSession = async () => {
     if (logs.length === 0) {
@@ -477,7 +478,6 @@ export default function App({ user, onSignOut }) {
     clearTimeout(noteTimerRef.current); setNoteWindowId(null);
     // Go to rating screen first, finalize after rating
     setSessionRating(null); setSessionNote("");
-    setRatingSource("logging");
     setScreen("rating");
   };
 
@@ -493,7 +493,8 @@ export default function App({ user, onSignOut }) {
   };
 
   const handleSeeSummary = async () => {
-    if (ratingSource === "summary") {
+    if (!activeSession) {
+      // Session already finalized — just update rating/note and return to summary
       await supabase.from('sessions').update({
         session_rating: sessionRating || null,
         session_note: sessionNote?.trim() || null,
@@ -619,9 +620,35 @@ export default function App({ user, onSignOut }) {
   if (screen==="sessionDetail" && viewingSession) {
     const s = viewingSession;
     const sf = (s.logs||[]).filter(l=>l.first_go===true);
-    const isThisActive = activeSession?.id === s.id;
     const RATING_LABELS = {1:"Drained", 2:"Fatigued", 3:"Felt Good", 4:"Fresh", 5:"Locked In"};
     const RATING_COLORS = {1:"#c0392b", 2:"#e07820", 3:"#888", 4:"#4caf50", 5:"#7eb8f0"};
+    const RATINGS_LIST = [
+      { value:1, label:"Drained",   color:"#c0392b", bg:"#1a0808" },
+      { value:2, label:"Fatigued",  color:"#e07820", bg:"#1a1008" },
+      { value:3, label:"Felt Good", color:"#888",    bg:"#181818" },
+      { value:4, label:"Fresh",     color:"#4caf50", bg:"#0d1f0d" },
+      { value:5, label:"Locked In", color:"#7eb8f0", bg:"#06111a" },
+    ];
+    const [editingRating, setEditingRating] = useState(false);
+    const [editingNote, setEditingNote] = useState(false);
+    const [localNote, setLocalNote] = useState(s.session_note || "");
+
+    const saveRating = async (val) => {
+      await supabase.from('sessions').update({ session_rating: val }).eq('id', s.id);
+      const updated = {...s, session_rating: val};
+      setViewingSession(updated);
+      setAllSessions(prev => prev.map(x => x.id===s.id ? updated : x));
+      setEditingRating(false);
+    };
+
+    const saveNote = async () => {
+      await supabase.from('sessions').update({ session_note: localNote.trim()||null }).eq('id', s.id);
+      const updated = {...s, session_note: localNote.trim()||null};
+      setViewingSession(updated);
+      setAllSessions(prev => prev.map(x => x.id===s.id ? updated : x));
+      setEditingNote(false);
+    };
+
     return (
       <div style={S.app}><Sheet /><DeleteSessionModal />
         <div style={S.pageContainer}>
@@ -637,26 +664,65 @@ export default function App({ user, onSignOut }) {
             <div style={S.statBox}><div style={S.statNum}>{sf.length}</div><div style={S.statLabel}>⚡ first go</div></div>
           </div>
 
-          {/* Rating and note if present */}
-          {(s.session_rating || s.session_note) && (
-            <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:24 }}>
-              {s.session_rating && (
-                <div style={{ display:"flex", alignItems:"center", gap:10, background:"#141414", border:`1px solid ${RATING_COLORS[s.session_rating]}`, borderRadius:6, padding:"10px 16px" }}>
+          {/* Rating — tap to edit inline */}
+          {!editingRating ? (
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10, cursor:"pointer" }}
+              onClick={() => setEditingRating(true)}>
+              {s.session_rating ? (
+                <div style={{ flex:1, background:"#141414", border:`1px solid ${RATING_COLORS[s.session_rating]}`, borderRadius:6, padding:"10px 16px", display:"flex", alignItems:"center", gap:10 }}>
                   <div style={{ width:8, height:8, borderRadius:"50%", background: RATING_COLORS[s.session_rating], flexShrink:0 }} />
-                  <div style={{ fontSize:13, fontWeight:700, color: RATING_COLORS[s.session_rating] }}>{RATING_LABELS[s.session_rating]}</div>
+                  <div style={{ fontSize:13, fontWeight:700, color: RATING_COLORS[s.session_rating], flex:1 }}>{RATING_LABELS[s.session_rating]}</div>
+                  <div style={{ fontSize:11, color:"#555" }}>tap to change</div>
                 </div>
-              )}
-              {s.session_note && (
-                <div style={{ background:"#141414", border:"1px solid #222", borderRadius:6, padding:"10px 16px", fontSize:13, color:"#aaa", lineHeight:1.6 }}>
-                  ✎ {s.session_note}
+              ) : (
+                <div style={{ flex:1, background:"#141414", border:"1px dashed #2a2a2a", borderRadius:6, padding:"10px 16px", fontSize:12, color:"#555", letterSpacing:"0.06em" }}>
+                  + how did you feel? tap to add
                 </div>
               )}
             </div>
+          ) : (
+            <div style={{ marginBottom:10 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:8 }}>
+                {RATINGS_LIST.map(r => (
+                  <button key={r.value} onClick={() => saveRating(r.value)} style={{
+                    padding:"10px 16px", borderRadius:6, cursor:"pointer", fontFamily:"'DM Mono',monospace",
+                    textAlign:"left", border:`1px solid ${s.session_rating===r.value ? r.color : "#222"}`,
+                    background: s.session_rating===r.value ? r.bg : "#141414",
+                    fontSize:13, fontWeight:700, color: s.session_rating===r.value ? r.color : "#f0ede8",
+                  }}>{r.label}</button>
+                ))}
+              </div>
+              <button style={{ background:"none", border:"none", color:"#555", fontSize:12, cursor:"pointer", fontFamily:"'DM Mono',monospace" }} onClick={() => setEditingRating(false)}>cancel</button>
+            </div>
           )}
 
-          <button style={S.addClimbBtn} onClick={() => reopenSession(s)}>
-            {isThisActive ? "● continue logging" : "+ add climb"}
-          </button>
+          {/* Note — tap to edit inline */}
+          {!editingNote ? (
+            <div style={{ marginBottom:20, cursor:"pointer" }} onClick={() => { setLocalNote(s.session_note||""); setEditingNote(true); }}>
+              {s.session_note ? (
+                <div style={{ background:"#141414", border:"1px solid #222", borderRadius:6, padding:"10px 16px", fontSize:13, color:"#aaa", lineHeight:1.6, display:"flex", gap:8 }}>
+                  <span style={{ flex:1 }}>✎ {s.session_note}</span>
+                  <span style={{ fontSize:11, color:"#555", flexShrink:0 }}>tap to edit</span>
+                </div>
+              ) : (
+                <div style={{ background:"#141414", border:"1px dashed #2a2a2a", borderRadius:6, padding:"10px 16px", fontSize:12, color:"#555", letterSpacing:"0.06em" }}>
+                  + session note — tap to add
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ marginBottom:20 }}>
+              <textarea autoFocus style={{ width:"100%", background:"#141414", border:"1px solid #3a3a3a", borderRadius:6, padding:"12px 16px", color:"#f0ede8", fontSize:14, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7 }}
+                value={localNote} onChange={e => setLocalNote(e.target.value)} rows={3}
+                placeholder="sleep, food, rest days, what you were working on..." />
+              <div style={{ display:"flex", gap:8, marginTop:8 }}>
+                <button style={{...S.btnSecondary, flex:1, padding:"10px 0"}} onClick={() => setEditingNote(false)}>cancel</button>
+                <button style={{...S.btnPrimary, flex:2, padding:"10px 0"}} onClick={saveNote}>save</button>
+              </div>
+            </div>
+          )}
+
+          <button style={S.addClimbBtn} onClick={() => addClimbsTo(s)}>+ add climb</button>
           <div style={S.sectionLabel}>climbs</div>
           {(s.logs||[]).map(l => <LogDetailRow key={l.id} log={l} onTap={() => openSheet(l)} />)}
         </div>
@@ -759,9 +825,12 @@ export default function App({ user, onSignOut }) {
           </div>
         )}
 
-        {/* END SESSION pinned at bottom */}
+        {/* END SESSION or DONE ADDING pinned at bottom */}
         <div style={S.endSessionBar}>
-          <button style={S.endSessionBtn} onClick={endSession}>END SESSION</button>
+          {isAddingClimbs
+            ? <button style={S.endSessionBtn} onClick={doneAddingClimbs}>DONE ADDING</button>
+            : <button style={S.endSessionBtn} onClick={endSession}>END SESSION</button>
+          }
         </div>
       </div>
     );
@@ -777,19 +846,21 @@ export default function App({ user, onSignOut }) {
       { value:5, label:"Locked In",  sub:"everything clicked",            color:"#7eb8f0", bg:"#06111a" },
     ];
 
-    const goBackToSession = async () => {
-      if (ratingSource === "summary") {
-        setScreen("summary");
-      } else {
+    const goBackFromRating = async () => {
+      if (activeSession) {
+        // Session not yet finalized — reopen for logging
         await supabase.from('sessions').update({ ended_at: null }).eq('id', activeSession.id);
         setScreen("logging");
+      } else {
+        // Session already saved — just go back to summary
+        setScreen("summary");
       }
     };
 
     return (
       <div style={S.app}>
         <div style={{ padding:"52px 24px 48px", minHeight:"100vh", display:"flex", flexDirection:"column" }}>
-          <button style={{...S.backBtn, marginBottom:24}} onClick={goBackToSession}>←</button>
+          <button style={{...S.backBtn, marginBottom:24}} onClick={goBackFromRating}>←</button>
           <div style={{ fontSize:13, color:"#888", letterSpacing:"0.1em", marginBottom:8 }}>{activeSession?.location}</div>
           <div style={{ fontSize:22, fontWeight:700, marginBottom:6 }}>how did you feel?</div>
           <div style={{ fontSize:13, color:"#666", marginBottom:36 }}>builds your training picture over time</div>
@@ -845,7 +916,6 @@ export default function App({ user, onSignOut }) {
         <div style={{ padding:"52px 24px 80px" }}>
           {/* Back arrow to rating */}
           <button style={{...S.backBtn, marginBottom:24}} onClick={() => {
-            setRatingSource("summary");
             setSessionRating(vs.session_rating || null);
             setSessionNote(vs.session_note || "");
             setScreen("rating");
