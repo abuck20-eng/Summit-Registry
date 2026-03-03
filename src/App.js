@@ -65,20 +65,20 @@ function ZapOverlay({ active }) {
 
 // ── Sent button with double-tap first go ──────────────────────────────────────
 function SentButton({ disabled, onSent, onFirstGo }) {
-  const lastTap = useRef(0);
   const tapTimer = useRef(null);
   const [armed, setArmed] = useState(false);
   const handlePress = () => {
     if (disabled) return;
-    const now = Date.now(); const gap = now - lastTap.current; lastTap.current = now;
     if (armed) { clearTimeout(tapTimer.current); setArmed(false); onFirstGo(); }
     else { setArmed(true); tapTimer.current = setTimeout(() => { setArmed(false); onSent(); }, 3000); }
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
-    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#a06010" : "#4caf50", color:"#fff", opacity: disabled ? 0.25 : 1, transform: armed ? "scale(0.97)" : "scale(1)", position:"relative", overflow:"hidden", transition:"background 0.15s, opacity 0.12s, transform 0.08s", boxShadow: armed ? "0 0 0 2px #c07820" : "none" }}>
-      {armed ? "⚡ flash?" : "SENT"}
-      {armed && <span style={{ position:"absolute", bottom:5, left:0, right:0, fontSize:9, color:"rgba(255,255,255,0.7)", letterSpacing:"0.08em", textAlign:"center" }}>tap again to confirm</span>}
+    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#1a0e00" : "#4caf50", color: armed ? "#e07820" : "#fff", opacity: disabled ? 0.25 : 1, border: armed ? "2px solid #c07820" : "none", transition:"all 0.15s", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}>
+      {armed
+        ? <><span style={{ fontSize:16, fontWeight:700, letterSpacing:"0.08em" }}>⚡ FLASH?</span><span style={{ fontSize:9, color:"#a06010", letterSpacing:"0.06em" }}>tap to confirm</span></>
+        : <span>SENT</span>
+      }
     </button>
   );
 }
@@ -1067,6 +1067,11 @@ export default function App({ user, onSignOut }) {
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, padding:"28px 24px 0" }}>
+          {logs.length > 0 && (
+            <div style={{ gridColumn:"1/-1", fontSize:10, color:"#555", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8, textAlign:"center" }}>
+              climb {logs.length + 1} — pick grade to log
+            </div>
+          )}
           <SentButton disabled={!canLog} onSent={handleSent} onFirstGo={handleFirstGo} />
           <button style={{...S.outcomeBtn, background:"#150f00", color:canLog?"#e07820":"#2a1a08", border:`1px solid ${canLog?"#3a2010":"#1e1608"}`, transition:"all 0.15s"}} onClick={() => canLog && commitLog("project")}>PROJECT</button>
           <button style={{...S.outcomeBtn, background:"#06111a", color:canLog?"#4a9fd4":"#0a2030", border:`1px solid ${canLog?"#1a4a6a":"#061018"}`, transition:"all 0.15s"}} onClick={() => canLog && commitLog("repeat")}>REPEAT</button>
