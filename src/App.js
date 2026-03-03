@@ -560,27 +560,38 @@ export default function App({ user, onSignOut }) {
             </div>
           )}
 
-          {/* Latest Session card — always pinned */}
-          {latestSession && (
-            <div style={latestIsActive ? S.activeCard : S.latestCard}
-              onClick={() => latestIsActive ? setScreen("logging") : (setViewingSession(latestSession), setScreen("sessionDetail"))}>
+          {/* Latest Session card — only show when no active session */}
+          {latestSession && !activeSession && (
+            <div style={S.latestCard} onClick={() => (setViewingSession(latestSession), setScreen("sessionDetail"))}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11, letterSpacing:"0.15em", marginBottom:6, color: latestIsActive ? "#4caf50" : "#888" }}>
-                    {latestIsActive ? "● IN PROGRESS" : "LAST SESSION"}
-                  </div>
+                  <div style={{ fontSize:11, letterSpacing:"0.15em", marginBottom:6, color:"#888" }}>LAST SESSION</div>
                   <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{latestSession.location}</div>
                   <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>
                     {new Date(latestSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}
                   </div>
                   <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>
-                    {latestSession.discipline} · {latestIsActive ? `${logs.length} logged · ${sends.length} sends${flashes.length>0?` · ${flashes.length} ⚡`:""}` : `${(latestSession.logs||[]).filter(l=>l.outcome==="sent").length} sends · ${(latestSession.logs||[]).length} climbs`}
+                    {latestSession.discipline} · {(latestSession.logs||[]).filter(l=>l.outcome==="sent").length} sends · {(latestSession.logs||[]).length} climbs
                   </div>
                 </div>
-                {latestIsActive
-                  ? <button style={S.endBtnSmall} onClick={e => { e.stopPropagation(); endSession(); }}>END</button>
-                  : <div style={{ fontSize:22, color:"#444", alignSelf:"center" }}>›</div>
-                }
+                <div style={{ fontSize:22, color:"#444", alignSelf:"center" }}>›</div>
+              </div>
+            </div>
+          )}
+
+          {/* Active session when it IS the latest — show as IN PROGRESS */}
+          {activeSession && latestSession && activeSession.id === latestSession.id && (
+            <div style={S.activeCard} onClick={() => setScreen("logging")}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, color:"#4caf50", letterSpacing:"0.15em", marginBottom:6 }}>● IN PROGRESS</div>
+                  <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{activeSession.location}</div>
+                  <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>{new Date(activeSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
+                  <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>
+                    {activeSession.discipline} · {logs.length} logged · {sends.length} sends{flashes.length>0?` · ${flashes.length} ⚡`:""}
+                  </div>
+                </div>
+                <button style={S.endBtnSmall} onClick={e => { e.stopPropagation(); endSession(); }}>END</button>
               </div>
             </div>
           )}
