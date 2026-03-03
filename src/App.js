@@ -70,7 +70,7 @@ function SentButton({ disabled, onSent, onFirstGo }) {
   const handlePress = () => {
     if (disabled) return;
     if (armed) { clearTimeout(tapTimer.current); setArmed(false); onFirstGo(); }
-    else { setArmed(true); tapTimer.current = setTimeout(() => { setArmed(false); onSent(); }, 3000); }
+    else { setArmed(true); tapTimer.current = setTimeout(() => { setArmed(false); onSent(); }, 2000); }
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
@@ -417,12 +417,6 @@ export default function App({ user, onSignOut }) {
     const tempId = `temp-${Date.now()}`;
     const tempEntry = { id: tempId, ...climbData, logged_at: new Date().toISOString() };
     setLogs(prev => [tempEntry, ...prev]);
-    // Show tap-to-edit hint on every climb for 10 seconds
-    if (!isAddingClimbs) {
-      setFirstClimbHint(true);
-      clearTimeout(hintTimerRef.current);
-      hintTimerRef.current = setTimeout(() => setFirstClimbHint(false), 10000);
-    }
     setJustLogged(tempEntry); setJustLoggedId(tempId);
     setClimbName(""); setSelectedGrade(null);
     setTimeout(() => { setJustLogged(null); setJustLoggedId(null); }, 1800);
@@ -438,8 +432,15 @@ export default function App({ user, onSignOut }) {
     }
   };
 
-  const handleSent = () => commitLog("sent", false);
-  const handleFirstGo = () => { setZapActive(true); setTimeout(() => setZapActive(false), 400); commitLog("sent", true); };
+  const showTapHint = () => {
+    if (isAddingClimbs) return;
+    setFirstClimbHint(true);
+    clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = setTimeout(() => setFirstClimbHint(false), 10000);
+  };
+
+  const handleSent = () => { showTapHint(); commitLog("sent", false); };
+  const handleFirstGo = () => { showTapHint(); setZapActive(true); setTimeout(() => setZapActive(false), 400); commitLog("sent", true); };
 
   const openSheet = (entry) => { clearTimeout(noteTimerRef.current); setNoteWindowId(null); setSheetEntry(entry); };
 
@@ -494,11 +495,9 @@ export default function App({ user, onSignOut }) {
     setActiveSession(data); setLogs([]); setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
     setIsAddingClimbs(false);
     setFirstClimbHint(false);
-    // Show onboard hint only on user's very first session
-    if (allSessions.length === 0) {
-      setSessionOnboardHint(true);
-      setTimeout(() => setSessionOnboardHint(false), 8000);
-    }
+    // Show onboard hint every time a new session starts
+    setSessionOnboardHint(true);
+    setTimeout(() => setSessionOnboardHint(false), 8000);
     setScreen("logging");
   };
 
@@ -1088,8 +1087,8 @@ export default function App({ user, onSignOut }) {
             </div>
           )}
           <SentButton disabled={!canLog} onSent={handleSent} onFirstGo={handleFirstGo} />
-          <button style={{...S.outcomeBtn, background:"#150f00", color:canLog?"#e07820":"#2a1a08", border:`1px solid ${canLog?"#3a2010":"#1e1608"}`, transition:"all 0.15s"}} onClick={() => canLog && commitLog("project")}>PROJECT</button>
-          <button style={{...S.outcomeBtn, background:"#06111a", color:canLog?"#4a9fd4":"#0a2030", border:`1px solid ${canLog?"#1a4a6a":"#061018"}`, transition:"all 0.15s"}} onClick={() => canLog && commitLog("repeat")}>REPEAT</button>
+          <button style={{...S.outcomeBtn, background:"#150f00", color:canLog?"#e07820":"#2a1a08", border:`1px solid ${canLog?"#3a2010":"#1e1608"}`, transition:"all 0.15s"}} onClick={() => { if(canLog){showTapHint(); commitLog("project");} }}>PROJECT</button>
+          <button style={{...S.outcomeBtn, background:"#06111a", color:canLog?"#4a9fd4":"#0a2030", border:`1px solid ${canLog?"#1a4a6a":"#061018"}`, transition:"all 0.15s"}} onClick={() => { if(canLog){showTapHint(); commitLog("repeat");} }}>REPEAT</button>
         </div>
 
         {logs.length > 0 && (
