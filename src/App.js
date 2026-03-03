@@ -295,15 +295,16 @@ function BarChart({ data, color = "#f0ede8" }) {
 // ── Bottom nav ────────────────────────────────────────────────────────────────
 function BottomNav({ tab, setTab, hasActiveSession }) {
   return (
-    <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, background:"#0e0e0e", borderTop:"1px solid #1a1a1a", display:"flex", zIndex:60, paddingBottom:"env(safe-area-inset-bottom)" }}>
+    <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, background:"#111", borderTop:"1px solid #2a2a2a", display:"flex", zIndex:60, paddingBottom:"env(safe-area-inset-bottom)" }}>
       {[
-        { id:"home",     icon:"⌂" },
-        { id:"lookup",   icon:"◎" },
-        { id:"insights", icon:"⬡" },
+        { id:"home",     icon:"⌂", label:"home" },
+        { id:"lookup",   icon:"⊙", label:"look up" },
+        { id:"insights", icon:"◈", label:"insights" },
       ].map(t => (
-        <button key={t.id} onClick={() => setTab(t.id)} style={{ flex:1, padding:"14px 0 12px", background:"none", border:"none", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-          <span style={{ fontSize:20, opacity: tab===t.id ? 1 : 0.3, transition:"opacity 0.12s" }}>{t.icon}</span>
-          {t.id==="home" && hasActiveSession && <span style={{ width:5, height:5, borderRadius:"50%", background:"#4caf50", display:"block" }} />}
+        <button key={t.id} onClick={() => setTab(t.id)} style={{ flex:1, padding:"12px 0 10px", background:"none", border:"none", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+          <span style={{ fontSize:22, color: tab===t.id ? "#f0ede8" : "#555", transition:"color 0.12s" }}>{t.icon}</span>
+          <span style={{ fontSize:9, letterSpacing:"0.1em", color: tab===t.id ? "#f0ede8" : "#444", textTransform:"uppercase" }}>{t.label}</span>
+          {t.id==="home" && hasActiveSession && <span style={{ width:5, height:5, borderRadius:"50%", background:"#4caf50", display:"block", marginTop:1 }} />}
         </button>
       ))}
     </div>
