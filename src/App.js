@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
 
 const BOULDER_GRADES = ["VB","V0","V1","V2","V3","V4","V5","V6","V7","V8","V9","V10","V11","V12","V13","V14","V15","V16"];
@@ -12,7 +12,9 @@ const DOUBLE_TAP_MS  = 300;
 
 const displayName = (log) => log.name || (log.is_gym ? "Plastic" : "unnamed");
 const gradeSort = (grade, discipline) => discipline === "route" ? (ROUTE_SORT[grade]||0) : (BOULDER_SORT[grade]||0);
+const TAB_SCREENS = ["home","lookup","insights"];
 
+// ── Grade Slider ────────────────────────────────────────────────────────────
 function GradeSlider({ grades, value, onChange }) {
   const [localIdx, setLocalIdx] = useState(Math.floor(grades.length / 2));
   const trackRef = useRef(null);
@@ -43,12 +45,14 @@ function GradeSlider({ grades, value, onChange }) {
   );
 }
 
+// ── Chip ─────────────────────────────────────────────────────────────────────
 function Chip({ label, selected, onToggle, accent }) {
   return (
     <button onClick={onToggle} style={{ padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:600, letterSpacing:"0.04em", cursor:"pointer", fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s", flexShrink:0, background: selected ? (accent || "#f0ede8") : "#1e1e1e", color: selected ? (accent ? "#fff" : "#0e0e0e") : "#888" }}>{label}</button>
   );
 }
 
+// ── Zap overlay ───────────────────────────────────────────────────────────────
 function ZapOverlay({ active }) {
   if (!active) return null;
   return (
@@ -58,6 +62,7 @@ function ZapOverlay({ active }) {
   );
 }
 
+// ── Sent button with double-tap first go ──────────────────────────────────────
 function SentButton({ disabled, onSent, onFirstGo }) {
   const lastTap = useRef(0);
   const tapTimer = useRef(null);
@@ -77,6 +82,7 @@ function SentButton({ disabled, onSent, onFirstGo }) {
   );
 }
 
+// ── Location input with suggestions ──────────────────────────────────────────
 function LocationInput({ value, onChange, placeholder, pastLocations }) {
   const [open, setOpen] = useState(false);
   const suggestions = value.length > 0
@@ -86,8 +92,7 @@ function LocationInput({ value, onChange, placeholder, pastLocations }) {
     <div style={{ position:"relative" }}>
       <input style={S.locationInput} placeholder={placeholder} value={value} autoFocus autoCapitalize="words"
         onChange={e => { onChange(e.target.value); setOpen(true); }}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)}
       />
       {open && suggestions.length > 0 && (
         <div style={S.suggestions}>
@@ -100,16 +105,17 @@ function LocationInput({ value, onChange, placeholder, pastLocations }) {
   );
 }
 
+// ── Detail sheet (bottom drawer for editing a climb) ─────────────────────────
 function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving }) {
-  const [name, setName]         = useState(entry.name || "");
+  const [name, setName]       = useState(entry.name || "");
   const [editingName, setEditingName] = useState(false);
-  const [grade, setGrade]       = useState(entry.grade || "");
+  const [grade, setGrade]     = useState(entry.grade || "");
   const [editingGrade, setEditingGrade] = useState(false);
-  const [outcome, setOutcome]   = useState(entry.outcome || "sent");
-  const [note, setNote]         = useState(entry.note || "");
-  const [angles, setAngles]     = useState(entry.angles || []);
-  const [styles, setStyles]     = useState(entry.styles || []);
-  const [firstGo, setFirstGo]   = useState(entry.first_go || false);
+  const [outcome, setOutcome] = useState(entry.outcome || "sent");
+  const [note, setNote]       = useState(entry.note || "");
+  const [angles, setAngles]   = useState(entry.angles || []);
+  const [styles, setStyles]   = useState(entry.styles || []);
+  const [firstGo, setFirstGo] = useState(entry.first_go || false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const grades = discipline === "route" ? ROUTE_GRADES : BOULDER_GRADES;
   const toggleAngle = (a) => setAngles(p => p.includes(a) ? p.filter(x=>x!==a) : [...p,a]);
@@ -135,7 +141,6 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
     <div style={S.overlay} onClick={onDismiss}>
       <div style={{ ...S.sheet, position:"relative" }} onClick={e => e.stopPropagation()}>
         <div style={S.sheetHandle} />
-        {/* Outcome toggle */}
         <div style={{ display:"flex", gap:8, marginBottom:20 }}>
           {["sent","project","repeat"].map(o => (
             <button key={o} onClick={() => setOutcome(o)} style={{
@@ -147,8 +152,6 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
             }}>{o.toUpperCase()}</button>
           ))}
         </div>
-
-        {/* Name row — pencil right next to the name */}
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:20 }}>
           <div style={{ flex:1, minWidth:0 }}>
             {editingName ? (
@@ -175,11 +178,9 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
             <button onClick={() => setEditingGrade(true)} style={S.gradeEditBtn}>{grade}</button>
           )}
         </div>
-
         {outcome === "sent" && (
           <div style={S.tagSection}>
             <div style={S.chipRow}><Chip label={firstGo ? "⚡ First go" : "⚡ First go?"} selected={firstGo} onToggle={() => setFirstGo(p=>!p)} accent="#a06010" /></div>
-            <div style={{ fontSize:11, color:"#333", marginTop:8 }}>{firstGo ? "tap to remove" : "tap to mark as first go"}</div>
           </div>
         )}
         <div style={S.tagSection}>
@@ -205,7 +206,7 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
   );
 }
 
-// ── Live Log Row — bright add details, pulsing new entry ──────────────────────
+// ── Live log row (logging screen) ─────────────────────────────────────────────
 function LiveLogRow({ log, isNoteWindow, onTap, isNew }) {
   const [progress, setProgress] = useState(100);
   const rafRef = useRef(null);
@@ -217,39 +218,30 @@ function LiveLogRow({ log, isNoteWindow, onTap, isNew }) {
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   }, [isNoteWindow]);
-
   const hasTags = log.angles?.length > 0 || log.styles?.length > 0;
   const hasAnything = hasTags || log.note || log.first_go;
   const showWindow = isNoteWindow && !hasAnything;
   const isSent = log.outcome === "sent";
   const isRepeat = log.outcome === "repeat";
-
   return (
     <div style={{ ...S.logRowWrap, animation: isNew ? "pulseRow 0.5s ease-out" : "none" }}>
       <style>{`@keyframes pulseRow { 0%{background:#1a2a1a} 100%{background:transparent} }`}</style>
       <div style={S.logRow} onClick={onTap}>
         <div style={{ display:"flex", alignItems:"flex-start", gap:10, flex:1, minWidth:0 }}>
-          <span style={{ width:9, height:9, borderRadius:"50%", flexShrink:0, marginTop:5, display:"inline-block",
-            background: isSent ? "#4caf50" : "transparent",
-            border: isSent ? "none" : isRepeat ? "2px solid #4a9fd4" : "2px solid #e07820" }} />
+          <span style={{ width:9, height:9, borderRadius:"50%", flexShrink:0, marginTop:5, display:"inline-block", background: isSent ? "#4caf50" : "transparent", border: isSent ? "none" : isRepeat ? "2px solid #4a9fd4" : "2px solid #e07820" }} />
           <div style={{ minWidth:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
               <span style={S.logName}>{displayName(log)}</span>
               {log.first_go && <span style={{ fontSize:12, color:"#c07820" }}>⚡</span>}
             </div>
-            {log.note
-              ? <div style={S.logMeta}>✎ {log.note.slice(0,42)}{log.note.length>42?"…":""}</div>
-              : hasTags
-                ? <div style={S.logMeta}>{[...(log.angles||[]),...(log.styles||[])].join(" · ")}</div>
-                : showWindow
-                  ? <div style={S.addPromptActive}>+ add details</div>
-                  : <div style={S.addPromptFaded}>+ add details</div>
-            }
+            {log.note ? <div style={S.logMeta}>✎ {log.note.slice(0,42)}{log.note.length>42?"…":""}</div>
+              : hasTags ? <div style={S.logMeta}>{[...(log.angles||[]),...(log.styles||[])].join(" · ")}</div>
+              : showWindow ? <div style={S.addPromptActive}>+ add details</div>
+              : <div style={S.addPromptFaded}>+ add details</div>}
           </div>
         </div>
         <span style={S.logGrade}>{log.grade}</span>
       </div>
-      {/* Progress bar — bright and obvious when window is open */}
       {showWindow && (
         <div style={{ height:3, background:"#1a1a1a", borderRadius:2, margin:"0 0 2px" }}>
           <div style={{ width:`${progress}%`, height:"100%", background:"#4caf50", borderRadius:2, transition:"width 0.08s linear", opacity:0.7 }} />
@@ -259,6 +251,7 @@ function LiveLogRow({ log, isNoteWindow, onTap, isNew }) {
   );
 }
 
+// ── Log detail row (session/summary pages) ────────────────────────────────────
 function LogDetailRow({ log, onTap }) {
   const hasTags = log.angles?.length > 0 || log.styles?.length > 0;
   const isSent = log.outcome === "sent";
@@ -273,17 +266,57 @@ function LogDetailRow({ log, onTap }) {
         <span style={S.detailGrade}>{log.grade}</span>
       </div>
       {hasTags && <div style={S.tagPills}>{[...(log.angles||[]),...(log.styles||[])].map(t => <span key={t} style={S.pill}>{t}</span>)}</div>}
-      {log.note ? <div style={S.noteChip}>✎ {log.note}</div> : null}
+      {log.note && <div style={S.noteChip}>✎ {log.note}</div>}
       {!hasTags && !log.note && !log.first_go && <div style={S.addChipDetail}>+ add details</div>}
     </div>
   );
 }
 
+// ── Simple SVG bar chart ──────────────────────────────────────────────────────
+function BarChart({ data, color = "#f0ede8" }) {
+  if (!data || data.length === 0) return null;
+  const max = Math.max(...data.map(d => d.value), 1);
+  const barW = Math.min(28, Math.floor(300 / data.length) - 4);
+  return (
+    <div style={{ overflowX:"auto", paddingBottom:4 }}>
+      <div style={{ display:"flex", alignItems:"flex-end", gap:3, height:80, minWidth: data.length * (barW + 3) }}>
+        {data.map((d, i) => (
+          <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flex:1 }}>
+            <div style={{ width:"100%", maxWidth:barW, background: color, borderRadius:"2px 2px 0 0", height: Math.max(3, (d.value / max) * 68), opacity: d.value === 0 ? 0.15 : 0.9, transition:"height 0.3s" }} />
+            <div style={{ fontSize:9, color:"#666", letterSpacing:"0.04em", textAlign:"center", maxWidth:barW+4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.label}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Bottom nav ────────────────────────────────────────────────────────────────
+function BottomNav({ tab, setTab, hasActiveSession }) {
+  return (
+    <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, background:"#0e0e0e", borderTop:"1px solid #1a1a1a", display:"flex", zIndex:50, paddingBottom:"env(safe-area-inset-bottom)" }}>
+      {[
+        { id:"home",     icon:"⌂" },
+        { id:"lookup",   icon:"◎" },
+        { id:"insights", icon:"⬡" },
+      ].map(t => (
+        <button key={t.id} onClick={() => setTab(t.id)} style={{ flex:1, padding:"14px 0 12px", background:"none", border:"none", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+          <span style={{ fontSize:20, opacity: tab===t.id ? 1 : 0.3, transition:"opacity 0.12s" }}>{t.icon}</span>
+          {t.id==="home" && hasActiveSession && <span style={{ width:5, height:5, borderRadius:"50%", background:"#4caf50", display:"block" }} />}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
 export default function App({ user, onSignOut }) {
   const [screen, setScreen] = useState("home");
+  const [tab, setTab] = useState("home");
   const [activeSession, setActiveSession] = useState(null);
   const [logs, setLogs] = useState([]);
   const [allSessions, setAllSessions] = useState([]);
+  const [allClimbs, setAllClimbs] = useState([]);
   const [viewingSession, setViewingSession] = useState(null);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [gymLocations, setGymLocations] = useState([]);
@@ -303,6 +336,13 @@ export default function App({ user, onSignOut }) {
   const [deleteSessionTarget, setDeleteSessionTarget] = useState(null);
   const [editingLocation, setEditingLocation] = useState(false);
   const [newLocation, setNewLocation] = useState("");
+  const [isAddingClimbs, setIsAddingClimbs] = useState(false);
+  const [editingRating, setEditingRating] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [localNote, setLocalNote] = useState("");
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupMode, setLookupMode] = useState("sessions"); // "sessions" | "climbs"
+  const [showAllSessions, setShowAllSessions] = useState(false);
   const noteTimerRef = useRef(null);
 
   const grades = discipline === "route" ? ROUTE_GRADES : BOULDER_GRADES;
@@ -310,18 +350,19 @@ export default function App({ user, onSignOut }) {
   const isGym = environment === "gym";
   const canLog = selectedGrade && (!isOutdoor || climbName.trim());
   const pastLocations = isGym ? gymLocations : outdoorLocations;
+  const showNav = TAB_SCREENS.includes(screen);
 
-  useEffect(() => { loadSessions(); }, []);
+  useEffect(() => { loadData(); }, []);
 
-  const loadSessions = async () => {
+  const loadData = async () => {
     setLoadingSessions(true);
-    const { data: sessions, error } = await supabase.from('sessions').select('*').order('started_at', { ascending: false });
-    if (error) { console.error(error); setLoadingSessions(false); return; }
-    const sessionsWithClimbs = await Promise.all(sessions.map(async (s) => {
-      const { data: climbs } = await supabase.from('climbs').select('*').eq('session_id', s.id).order('logged_at', { ascending: false });
-      return { ...s, logs: climbs || [] };
-    }));
+    const { data: sessions } = await supabase.from('sessions').select('*').order('started_at', { ascending: false });
+    const { data: climbs } = await supabase.from('climbs').select('*').order('logged_at', { ascending: false });
+    if (!sessions) { setLoadingSessions(false); return; }
+    const climbsArr = climbs || [];
+    const sessionsWithClimbs = sessions.map(s => ({ ...s, logs: climbsArr.filter(c => c.session_id === s.id) }));
     setAllSessions(sessionsWithClimbs);
+    setAllClimbs(climbsArr);
     setGymLocations([...new Set(sessionsWithClimbs.filter(s=>s.environment==="gym").map(s=>s.location).filter(Boolean))]);
     setOutdoorLocations([...new Set(sessionsWithClimbs.filter(s=>s.environment==="outdoor").map(s=>s.location).filter(Boolean))]);
     const active = sessionsWithClimbs.find(s => !s.ended_at);
@@ -329,12 +370,7 @@ export default function App({ user, onSignOut }) {
     setLoadingSessions(false);
   };
 
-  const createSession = async (loc, env, disc) => {
-    const { data, error } = await supabase.from('sessions').insert({ user_id: user.id, location: loc, environment: env, discipline: disc }).select().single();
-    if (error) { console.error(error); return null; }
-    return data;
-  };
-
+  // ── DB helpers ──────────────────────────────────────────────────────────────
   const saveClimbToDb = async (sessionId, climbData) => {
     const { data, error } = await supabase.from('climbs').insert({
       session_id: sessionId, user_id: user.id, name: climbData.name, grade: climbData.grade,
@@ -347,8 +383,7 @@ export default function App({ user, onSignOut }) {
   };
 
   const updateClimbInDb = async (climbId, updates) => {
-    const { error } = await supabase.from('climbs').update(updates).eq('id', climbId);
-    if (error) console.error(error);
+    await supabase.from('climbs').update(updates).eq('id', climbId);
   };
 
   const deleteClimbFromDb = async (climbId) => { await supabase.from('climbs').delete().eq('id', climbId); };
@@ -356,7 +391,9 @@ export default function App({ user, onSignOut }) {
   const deleteSession = async (sessionId) => {
     await supabase.from('climbs').delete().eq('session_id', sessionId);
     await supabase.from('sessions').delete().eq('id', sessionId);
-    setAllSessions(prev => prev.filter(s => s.id !== sessionId));
+    const removed = allSessions.filter(s => s.id !== sessionId);
+    setAllSessions(removed);
+    setAllClimbs(prev => prev.filter(c => c.session_id !== sessionId));
     setDeleteSessionTarget(null);
     if (activeSession?.id === sessionId) { setActiveSession(null); setLogs([]); }
   };
@@ -368,14 +405,14 @@ export default function App({ user, onSignOut }) {
     setEditingLocation(false);
   };
 
+  // ── Logging ─────────────────────────────────────────────────────────────────
   const commitLog = async (outcome, firstGo = false) => {
     if (!canLog || !activeSession) return;
     const climbData = { name: climbName.trim()||null, grade: selectedGrade, outcome, first_go: firstGo, angles:[], styles:[], note:"", is_gym: isGym };
     const tempId = `temp-${Date.now()}`;
     const tempEntry = { id: tempId, ...climbData, logged_at: new Date().toISOString() };
     setLogs(prev => [tempEntry,...prev]);
-    setJustLogged(tempEntry);
-    setJustLoggedId(tempId);
+    setJustLogged(tempEntry); setJustLoggedId(tempId);
     setClimbName(""); setSelectedGrade(null);
     setTimeout(() => { setJustLogged(null); setJustLoggedId(null); }, 1800);
     clearTimeout(noteTimerRef.current);
@@ -383,24 +420,29 @@ export default function App({ user, onSignOut }) {
     noteTimerRef.current = setTimeout(() => setNoteWindowId(null), NOTE_WINDOW_MS);
     const saved = await saveClimbToDb(activeSession.id, climbData);
     if (saved) {
-      setLogs(prev => prev.map(l => l.id===tempId ? {...saved, is_gym: isGym} : l));
+      const withGym = {...saved, is_gym: isGym};
+      setLogs(prev => prev.map(l => l.id===tempId ? withGym : l));
+      setAllClimbs(prev => [withGym, ...prev.filter(c => c.id !== tempId)]);
       setNoteWindowId(saved.id);
     }
   };
 
   const handleSent = () => commitLog("sent", false);
   const handleFirstGo = () => { setZapActive(true); setTimeout(() => setZapActive(false), 400); commitLog("sent", true); };
+
   const openSheet = (entry) => { clearTimeout(noteTimerRef.current); setNoteWindowId(null); setSheetEntry(entry); };
 
   const saveDetail = async ({ name, grade, outcome, note, angles, styles, first_go }) => {
     setSheetSaving(true);
-    const disc = discipline || "boulder";
+    const disc = discipline || (viewingSession?.discipline) || "boulder";
     const updates = { name: name||null, grade, grade_sort: gradeSort(grade, disc), outcome, note, angles, styles, first_go };
     const updateLog = l => l.id===sheetEntry.id ? {...l,...updates} : l;
     setLogs(prev => prev.map(updateLog));
+    setAllClimbs(prev => prev.map(updateLog));
     if (viewingSession) {
       const updated = {...viewingSession, logs: viewingSession.logs.map(updateLog)};
-      setViewingSession(updated); setAllSessions(prev => prev.map(s => s.id===viewingSession.id ? updated : s));
+      setViewingSession(updated);
+      setAllSessions(prev => prev.map(s => s.id===viewingSession.id ? updated : s));
     }
     if (!String(sheetEntry.id).startsWith('temp-')) await updateClimbInDb(sheetEntry.id, updates);
     setSheetSaving(false); setSheetEntry(null);
@@ -409,37 +451,16 @@ export default function App({ user, onSignOut }) {
   const deleteClimb = async () => {
     const id = sheetEntry.id; setSheetEntry(null);
     setLogs(prev => prev.filter(l => l.id !== id));
+    setAllClimbs(prev => prev.filter(c => c.id !== id));
     if (viewingSession) {
       const updated = {...viewingSession, logs: viewingSession.logs.filter(l => l.id !== id)};
-      setViewingSession(updated); setAllSessions(prev => prev.map(s => s.id===viewingSession.id ? updated : s));
+      setViewingSession(updated);
+      setAllSessions(prev => prev.map(s => s.id===viewingSession.id ? updated : s));
     }
     if (!String(id).startsWith('temp-')) await deleteClimbFromDb(id);
   };
 
-  const addClimbsTo = async (session) => {
-    // Lightweight mode — don't touch ended_at, just load the session for logging
-    const { data: climbs } = await supabase.from('climbs').select('*').eq('session_id', session.id).order('logged_at', { ascending: false });
-    setActiveSession(session);
-    setLogs(climbs || []);
-    setEnvironment(session.environment);
-    setDiscipline(session.discipline);
-    setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
-    setIsAddingClimbs(true);
-    setViewingSession(session);
-    setScreen("logging");
-  };
-
-  const doneAddingClimbs = async (goTo) => {
-    clearTimeout(noteTimerRef.current); setNoteWindowId(null);
-    const { data: climbs } = await supabase.from('climbs').select('*').eq('session_id', activeSession.id).order('logged_at', { ascending: false });
-    const updated = {...viewingSession, logs: climbs || []};
-    setViewingSession(updated);
-    setAllSessions(prev => prev.map(s => s.id===activeSession.id ? updated : s));
-    setActiveSession(null); setLogs([]);
-    setIsAddingClimbs(false);
-    setScreen(goTo || "sessionDetail");
-  };
-
+  // ── Session management ──────────────────────────────────────────────────────
   const startSetup = () => { setSetupStep(0); setEnvironment(null); setDiscipline(null); setLocation(""); setScreen("setup"); };
 
   const pick = (c) => {
@@ -457,16 +478,12 @@ export default function App({ user, onSignOut }) {
     const loc = location.trim()||"Unknown";
     const { data, error } = await supabase.from('sessions').insert({ user_id: user.id, location: loc, environment, discipline }).select().single();
     if (error || !data) return;
+    const newSession = {...data, logs:[]};
+    setAllSessions(prev => [newSession, ...prev]);
     setActiveSession(data); setLogs([]); setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
+    setIsAddingClimbs(false);
     setScreen("logging");
   };
-
-  const [sessionRating, setSessionRating] = useState(null);
-  const [sessionNote, setSessionNote] = useState("");
-  const [isAddingClimbs, setIsAddingClimbs] = useState(false);
-  const [editingRating, setEditingRating] = useState(false);
-  const [editingNote, setEditingNote] = useState(false);
-  const [localNote, setLocalNote] = useState("");
 
   const endSession = async () => {
     if (logs.length === 0) {
@@ -475,45 +492,102 @@ export default function App({ user, onSignOut }) {
       await supabase.from('sessions').delete().eq('id', activeSession.id);
       setActiveSession(null); setLogs([]);
       setAllSessions(prev => prev.filter(s => s.id !== activeSession.id));
-      setScreen("home"); return;
+      setScreen("home"); setTab("home"); return;
     }
     clearTimeout(noteTimerRef.current); setNoteWindowId(null);
-    // Go to rating screen first, finalize after rating
-    setSessionRating(null); setSessionNote("");
-    setScreen("rating");
-  };
-
-  const finalizeSession = async (rating, note) => {
-    await supabase.from('sessions').update({
-      ended_at: new Date().toISOString(),
-      session_rating: rating || null,
-      session_note: note?.trim() || null,
-    }).eq('id', activeSession.id);
-    const done = {...activeSession, logs, ended_at: new Date().toISOString(), session_rating: rating, session_note: note};
-    setAllSessions(prev => [done,...prev.filter(s => s.id!==activeSession.id)]);
+    await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
+    const done = {...activeSession, logs, ended_at: new Date().toISOString()};
+    setAllSessions(prev => prev.map(s => s.id===activeSession.id ? done : s));
     setActiveSession(null); setViewingSession(done); setScreen("summary");
   };
 
-  const handleSeeSummary = async () => {
-    if (!activeSession) {
-      // Session already finalized — just update rating/note and return to summary
-      await supabase.from('sessions').update({
-        session_rating: sessionRating || null,
-        session_note: sessionNote?.trim() || null,
-      }).eq('id', viewingSession.id);
-      setViewingSession(prev => ({...prev, session_rating: sessionRating, session_note: sessionNote}));
-      setAllSessions(prev => prev.map(s => s.id===viewingSession.id ? {...s, session_rating: sessionRating, session_note: sessionNote} : s));
-      setScreen("summary");
-    } else {
-      finalizeSession(sessionRating, sessionNote);
-    }
+  const addClimbsTo = async (session) => {
+    const sessionClimbs = allClimbs.filter(c => c.session_id === session.id);
+    setActiveSession(session);
+    setLogs(sessionClimbs);
+    setEnvironment(session.environment);
+    setDiscipline(session.discipline);
+    setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
+    setIsAddingClimbs(true);
+    setViewingSession(session);
+    setScreen("logging");
   };
+
+  const doneAddingClimbs = async (goTo) => {
+    clearTimeout(noteTimerRef.current); setNoteWindowId(null);
+    const freshClimbs = allClimbs.filter(c => c.session_id === activeSession.id);
+    const updated = {...viewingSession, logs: freshClimbs};
+    setViewingSession(updated);
+    setAllSessions(prev => prev.map(s => s.id===activeSession.id ? updated : s));
+    setActiveSession(null); setLogs([]);
+    setIsAddingClimbs(false);
+    setScreen(goTo || "sessionDetail");
+  };
+
+  // ── Lookup helpers ──────────────────────────────────────────────────────────
+  const filteredSessions = useMemo(() => {
+    if (!lookupQuery.trim()) return allSessions.filter(s => s.ended_at);
+    const q = lookupQuery.toLowerCase();
+    return allSessions.filter(s => s.ended_at && (s.location||"").toLowerCase().includes(q));
+  }, [lookupQuery, allSessions]);
+
+  const filteredClimbs = useMemo(() => {
+    if (!lookupQuery.trim()) return [];
+    const q = lookupQuery.toLowerCase();
+    return allClimbs.filter(c => (c.name||"").toLowerCase().includes(q)).slice(0, 30);
+  }, [lookupQuery, allClimbs]);
+
+  // ── Insights data ───────────────────────────────────────────────────────────
+  const insightsData = useMemo(() => {
+    const sent = allClimbs.filter(c => c.outcome === "sent");
+    const total = allClimbs.length;
+    const sessions = allSessions.filter(s => s.ended_at).length;
+    const locations = new Set(allSessions.map(s => s.location).filter(Boolean)).size;
+    const sendRate = total > 0 ? Math.round((sent.length / total) * 100) : 0;
+
+    // Grade breakdown — only sent climbs, group by grade
+    const gradeMap = {};
+    sent.forEach(c => { gradeMap[c.grade] = (gradeMap[c.grade]||0) + 1; });
+    // Get all grades that appear, sorted
+    const isBoulder = sent.some(c => BOULDER_GRADES.includes(c.grade));
+    const gradeList = isBoulder ? BOULDER_GRADES : ROUTE_GRADES;
+    const gradeCounts = gradeList.filter(g => gradeMap[g]).map(g => ({ label: g, value: gradeMap[g] }));
+
+    // Location breakdown
+    const locMap = {};
+    allSessions.filter(s=>s.ended_at).forEach(s => { if (s.location) locMap[s.location] = (locMap[s.location]||0) + (s.logs||[]).length; });
+    const topLocs = Object.entries(locMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([label,value])=>({label,value}));
+
+    // Best conditions — angle + style combos on sends, gated at 10 sends
+    let bestConditions = null;
+    if (sent.length >= 10) {
+      const angleCount = {}; const styleCount = {};
+      sent.forEach(c => {
+        (c.angles||[]).forEach(a => { angleCount[a] = (angleCount[a]||0)+1; });
+        (c.styles||[]).forEach(s => { styleCount[s] = (styleCount[s]||0)+1; });
+      });
+      const topAngle = Object.entries(angleCount).sort((a,b)=>b[1]-a[1])[0];
+      const topStyle = Object.entries(styleCount).sort((a,b)=>b[1]-a[1])[0];
+      if (topAngle || topStyle) bestConditions = { angle: topAngle?.[0], style: topStyle?.[0] };
+    }
+
+    // Outdoor vs gym
+    const outdoorCount = allClimbs.filter(c => !c.is_gym).length;
+    const gymCount = allClimbs.filter(c => c.is_gym).length;
+
+    return { total, sent: sent.length, sessions, locations, sendRate, gradeCounts, topLocs, bestConditions, outdoorCount, gymCount };
+  }, [allClimbs, allSessions]);
 
   const sends   = logs.filter(l => l.outcome==="sent");
   const repeats = logs.filter(l => l.outcome==="repeat");
   const flashes = logs.filter(l => l.first_go===true);
 
-  const Sheet = () => sheetEntry ? <DetailSheet entry={sheetEntry} discipline={discipline||"boulder"} onSave={saveDetail} onDismiss={() => setSheetEntry(null)} onDelete={deleteClimb} saving={sheetSaving} /> : null;
+  // ── Shared sub-components ────────────────────────────────────────────────────
+  const Sheet = () => sheetEntry ? (
+    <DetailSheet entry={sheetEntry}
+      discipline={discipline || viewingSession?.discipline || "boulder"}
+      onSave={saveDetail} onDismiss={() => setSheetEntry(null)} onDelete={deleteClimb} saving={sheetSaving} />
+  ) : null;
 
   const DeleteSessionModal = () => !deleteSessionTarget ? null : (
     <div style={S.overlay} onClick={() => setDeleteSessionTarget(null)}>
@@ -522,72 +596,37 @@ export default function App({ user, onSignOut }) {
         <div style={{ textAlign:"center", padding:"12px 0 8px" }}>
           <div style={{ fontSize:18, fontWeight:700, marginBottom:8 }}>delete this session?</div>
           <div style={{ fontSize:13, color:"#777", marginBottom:4 }}>{deleteSessionTarget.location}</div>
-          <div style={{ fontSize:12, color:"#555", marginBottom:24 }}>{deleteSessionTarget.logs?.length || 0} climbs will be permanently deleted</div>
+          <div style={{ fontSize:12, color:"#555", marginBottom:24 }}>{deleteSessionTarget.logs?.length || 0} climbs will be deleted</div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
             <button style={S.btnSecondary} onClick={() => setDeleteSessionTarget(null)}>cancel</button>
-            <button style={{ ...S.btnPrimary, background:"#c0392b" }} onClick={() => deleteSession(deleteSessionTarget.id)}>delete</button>
+            <button style={{ ...S.btnPrimary, background:"#c0392b" }} onClick={() => { deleteSession(deleteSessionTarget.id); if (screen==="sessionDetail") { setViewingSession(null); setScreen("home"); } }}>delete</button>
           </div>
         </div>
       </div>
     </div>
   );
 
-  // HOME
-  if (screen==="home") {
+  // ── HOME tab ─────────────────────────────────────────────────────────────────
+  if (screen === "home") {
     const pastSessions = allSessions.filter(s => s.ended_at);
-    const latestSession = allSessions[0]; // most recent started_at (sorted desc)
-    const latestIsActive = latestSession && !latestSession.ended_at;
-    const latestIsEnded = latestSession && !!latestSession.ended_at;
+    const latestSession = allSessions[0];
+    const displaySessions = showAllSessions ? pastSessions : pastSessions.slice(0, 8);
+
     return (
       <div style={S.app}>
         <Sheet /><DeleteSessionModal />
-        <div style={S.homeContainer}>
+        <div style={{ padding:"52px 24px 120px" }}>
           <div style={S.homeTop}><div style={S.logo}>SUMMIT</div><div style={S.tagline}>your climbing registry</div></div>
 
-          {/* Active session card — only if active is NOT the latest (i.e. it's a reopened old one) */}
-          {activeSession && latestSession && activeSession.id !== latestSession.id && (
-            <div style={{...S.activeCard, marginBottom:12}} onClick={() => setScreen("logging")}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                <div>
-                  <div style={{ fontSize:11, color:"#4caf50", letterSpacing:"0.15em", marginBottom:6 }}>● IN PROGRESS</div>
-                  <div style={{ fontSize:18, fontWeight:700, color:"#f0ede8" }}>{activeSession.location}</div>
-                  <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>{new Date(activeSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
-                  <div style={{ fontSize:12, color:"#aaa", marginTop:3 }}>{activeSession.discipline} · {logs.length} logged · {sends.length} sends</div>
-                </div>
-                <button style={S.endBtnSmall} onClick={e => { e.stopPropagation(); endSession(); }}>END</button>
-              </div>
-            </div>
-          )}
-
-          {/* Latest Session card — only show when no active session */}
-          {latestSession && !activeSession && (
-            <div style={S.latestCard} onClick={() => (setViewingSession(latestSession), setScreen("sessionDetail"))}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11, letterSpacing:"0.15em", marginBottom:6, color:"#888" }}>LAST SESSION</div>
-                  <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{latestSession.location}</div>
-                  <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>
-                    {new Date(latestSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}
-                  </div>
-                  <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>
-                    {latestSession.discipline} · {(latestSession.logs||[]).filter(l=>l.outcome==="sent").length} sends · {(latestSession.logs||[]).length} climbs
-                  </div>
-                </div>
-                <div style={{ fontSize:22, color:"#444", alignSelf:"center" }}>›</div>
-              </div>
-            </div>
-          )}
-
-          {/* Active session when it IS the latest — show as IN PROGRESS */}
-          {activeSession && latestSession && activeSession.id === latestSession.id && (
+          {/* Active session — IN PROGRESS */}
+          {activeSession && (
             <div style={S.activeCard} onClick={() => setScreen("logging")}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11, color:"#4caf50", letterSpacing:"0.15em", marginBottom:6 }}>● IN PROGRESS</div>
                   <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{activeSession.location}</div>
                   <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>{new Date(activeSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
-                  <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>
-                    {activeSession.discipline} · {logs.length} logged · {sends.length} sends{flashes.length>0?` · ${flashes.length} ⚡`:""}
+                  <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>{activeSession.discipline} · {logs.length} logged · {sends.length} sent{flashes.length>0?` · ${flashes.length} ⚡`:""}
                   </div>
                 </div>
                 <button style={S.endBtnSmall} onClick={e => { e.stopPropagation(); endSession(); }}>END</button>
@@ -595,46 +634,265 @@ export default function App({ user, onSignOut }) {
             </div>
           )}
 
+          {/* Last session card — only when no active */}
+          {!activeSession && latestSession && (
+            <div style={S.latestCard} onClick={() => { setViewingSession(latestSession); setScreen("sessionDetail"); }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:11, letterSpacing:"0.15em", marginBottom:6, color:"#888" }}>LAST SESSION</div>
+                  <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{latestSession.location}</div>
+                  <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>{new Date(latestSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
+                  <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>{latestSession.discipline} · {(latestSession.logs||[]).filter(l=>l.outcome==="sent").length} sent · {(latestSession.logs||[]).length} climbs</div>
+                </div>
+                <div style={{ fontSize:22, color:"#444", alignSelf:"center" }}>›</div>
+              </div>
+            </div>
+          )}
+
+          {/* Session list */}
           {loadingSessions ? (
-            <div style={S.emptyState}><div style={{color:"#666",fontSize:12,letterSpacing:"0.1em"}}>loading...</div></div>
+            <div style={{ color:"#555", fontSize:12, letterSpacing:"0.1em", padding:"20px 0" }}>loading...</div>
           ) : pastSessions.length > 0 ? (
-            <div style={S.sessionList}>
+            <>
               <div style={S.sectionLabel}>sessions</div>
-              {pastSessions.filter(s => s.id !== latestSession?.id).map(s => (
+              {displaySessions.filter(s => s.id !== latestSession?.id).map(s => (
                 <div key={s.id} style={S.sessionCard}>
-                  <div style={{ flex:1 }} onClick={() => {setViewingSession(s);setScreen("sessionDetail");}}>
+                  <div style={{ flex:1 }} onClick={() => { setViewingSession(s); setScreen("sessionDetail"); }}>
                     <div style={S.sessionCardLocation}>{s.location}</div>
-                    <div style={S.sessionCardMeta}>{s.discipline} · {(s.logs||[]).filter(l=>l.outcome==="sent").length} sends · {(s.logs||[]).length} climbs</div>
+                    <div style={S.sessionCardMeta}>{s.discipline} · {(s.logs||[]).filter(l=>l.outcome==="sent").length} sent · {(s.logs||[]).length} climbs</div>
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                     <div style={S.sessionCardDate}>{new Date(s.started_at).toLocaleDateString([],{month:"short",day:"numeric"})}</div>
                     <button style={S.trashBtn} onClick={() => setDeleteSessionTarget(s)}>✕</button>
                   </div>
                 </div>
               ))}
-            </div>
-          ) : !latestSession && (
-            <div style={S.emptyState}>
-              <div style={{ fontSize:48, marginBottom:8 }}>⬡</div>
-              <div style={{ fontSize:16, fontWeight:700, color:"#f0ede8", letterSpacing:"0.04em" }}>no sessions yet</div>
-              <div style={{ fontSize:13, color:"#666", textAlign:"center", lineHeight:1.6, maxWidth:240, marginTop:4 }}>start your first session to begin tracking your climbing</div>
+              {pastSessions.length > 9 && !showAllSessions && (
+                <button style={S.lookupMoreBtn} onClick={() => { setTab("lookup"); setScreen("lookup"); }}>
+                  look up more ›
+                </button>
+              )}
+            </>
+          ) : !activeSession && (
+            <div style={{ textAlign:"center", padding:"52px 0" }}>
+              <div style={{ fontSize:42, marginBottom:12 }}>⬡</div>
+              <div style={{ fontSize:16, fontWeight:700, color:"#f0ede8", marginBottom:6 }}>no sessions yet</div>
+              <div style={{ fontSize:13, color:"#666", lineHeight:1.6 }}>start your first session to begin tracking</div>
             </div>
           )}
         </div>
+
+        {/* START SESSION + sign out */}
         <div style={S.floatingBtn}>
           {!activeSession && !loadingSessions && <button style={S.startBtn} onClick={startSetup}>START SESSION</button>}
           <button style={S.signOutBtn} onClick={onSignOut}>sign out</button>
         </div>
+
+        <BottomNav tab={tab} setTab={t => { setTab(t); setScreen(t); }} hasActiveSession={!!activeSession} />
       </div>
     );
   }
 
-  // SESSION DETAIL
-  if (screen==="sessionDetail" && viewingSession) {
+  // ── LOOKUP tab ───────────────────────────────────────────────────────────────
+  if (screen === "lookup") {
+    return (
+      <div style={S.app}>
+        <Sheet /><DeleteSessionModal />
+        <div style={{ padding:"52px 24px 120px" }}>
+          <div style={S.homeTop}><div style={S.logo}>LOOK UP</div><div style={S.tagline}>find sessions & climbs</div></div>
+
+          {/* Search input */}
+          <input
+            style={{ ...S.nameInputBoxed, marginBottom:16 }}
+            placeholder="search by location or climb name..."
+            value={lookupQuery}
+            onChange={e => setLookupQuery(e.target.value)}
+            autoCapitalize="off"
+          />
+
+          {/* Mode toggle */}
+          <div style={{ display:"flex", gap:6, marginBottom:24 }}>
+            {["sessions","climbs"].map(m => (
+              <button key={m} onClick={() => setLookupMode(m)} style={{
+                flex:1, padding:"9px 0", borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.1em",
+                cursor:"pointer", fontFamily:"'DM Mono',monospace", border:"none",
+                background: lookupMode===m ? "#f0ede8" : "#161616", color: lookupMode===m ? "#0e0e0e" : "#666",
+              }}>{m.toUpperCase()}</button>
+            ))}
+          </div>
+
+          {lookupMode === "sessions" && (
+            <>
+              {filteredSessions.length === 0 && lookupQuery && (
+                <div style={{ color:"#555", fontSize:13, padding:"20px 0" }}>no sessions match "{lookupQuery}"</div>
+              )}
+              {filteredSessions.length === 0 && !lookupQuery && (
+                <div style={{ color:"#555", fontSize:13, padding:"20px 0" }}>type to search sessions by location</div>
+              )}
+              {filteredSessions.map(s => (
+                <div key={s.id} style={S.sessionCard} onClick={() => { setViewingSession(s); setScreen("sessionDetail"); }}>
+                  <div style={{ flex:1 }}>
+                    <div style={S.sessionCardLocation}>{s.location}</div>
+                    <div style={S.sessionCardMeta}>{s.discipline} · {(s.logs||[]).filter(l=>l.outcome==="sent").length} sent · {(s.logs||[]).length} climbs</div>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                    <div style={S.sessionCardDate}>{new Date(s.started_at).toLocaleDateString([],{month:"short",day:"numeric"})}</div>
+                    <div style={{ fontSize:18, color:"#444" }}>›</div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {lookupMode === "climbs" && (
+            <>
+              {!lookupQuery && <div style={{ color:"#555", fontSize:13, padding:"20px 0" }}>type a climb name to search</div>}
+              {lookupQuery && filteredClimbs.length === 0 && <div style={{ color:"#555", fontSize:13, padding:"20px 0" }}>no climbs named "{lookupQuery}"</div>}
+              {filteredClimbs.map(c => {
+                const isSent = c.outcome==="sent"; const isRepeat = c.outcome==="repeat";
+                const outcomeColor = isSent?"#4caf50":isRepeat?"#4a9fd4":"#e07820";
+                const outcomeIcon = isSent?"✓":isRepeat?"↺":"◎";
+                const hasTags = (c.angles||[]).length > 0 || (c.styles||[]).length > 0;
+                return (
+                  <div key={c.id} style={S.detailRow} onClick={() => openSheet(c)}>
+                    <div style={S.detailTop}>
+                      <span style={{ color: outcomeColor, fontSize:15, width:18, textAlign:"center", flexShrink:0 }}>{outcomeIcon}</span>
+                      <span style={S.detailName}>{displayName(c)}{c.first_go && <span style={{ fontSize:10, color:"#a06010", marginLeft:6 }}>⚡</span>}</span>
+                      <span style={S.detailGrade}>{c.grade}</span>
+                    </div>
+                    {hasTags && <div style={S.tagPills}>{[...(c.angles||[]),...(c.styles||[])].map(t=><span key={t} style={S.pill}>{t}</span>)}</div>}
+                    {c.note && <div style={S.noteChip}>✎ {c.note}</div>}
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
+        <BottomNav tab={tab} setTab={t => { setTab(t); setScreen(t); }} hasActiveSession={!!activeSession} />
+      </div>
+    );
+  }
+
+  // ── INSIGHTS tab ─────────────────────────────────────────────────────────────
+  if (screen === "insights") {
+    const { total, sent, sessions, locations, sendRate, gradeCounts, topLocs, bestConditions, outdoorCount, gymCount } = insightsData;
+    const hasData = total >= 1;
+    const hasGradeData = gradeCounts.length >= 3;
+    const hasBestConditions = !!bestConditions;
+    return (
+      <div style={S.app}>
+        <div style={{ padding:"52px 24px 120px" }}>
+          <div style={S.homeTop}><div style={S.logo}>INSIGHTS</div><div style={S.tagline}>your climbing data</div></div>
+
+          {!hasData ? (
+            <div style={{ textAlign:"center", padding:"52px 0" }}>
+              <div style={{ fontSize:42, marginBottom:12 }}>⬡</div>
+              <div style={{ fontSize:16, fontWeight:700, color:"#f0ede8", marginBottom:6 }}>no data yet</div>
+              <div style={{ fontSize:13, color:"#666", lineHeight:1.6 }}>log a few sessions to see your insights</div>
+            </div>
+          ) : (
+            <>
+              {/* Totals */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:24 }}>
+                {[
+                  { num: total,    label:"climbs logged" },
+                  { num: sent,     label:"sends" },
+                  { num: sessions, label:"sessions" },
+                  { num: locations,label:"locations" },
+                ].map(({ num, label }) => (
+                  <div key={label} style={S.statBox}>
+                    <div style={{ fontSize:32, fontWeight:700, color:"#f0ede8" }}>{num}</div>
+                    <div style={{ fontSize:10, color:"#888", letterSpacing:"0.1em", textTransform:"uppercase", marginTop:2 }}>{label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Send rate */}
+              <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                  <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase" }}>send rate</div>
+                  <div style={{ fontSize:28, fontWeight:700, color:"#4caf50" }}>{sendRate}%</div>
+                </div>
+                <div style={{ height:6, background:"#1e1e1e", borderRadius:3 }}>
+                  <div style={{ width:`${sendRate}%`, height:"100%", background:"#4caf50", borderRadius:3, transition:"width 0.4s" }} />
+                </div>
+                <div style={{ fontSize:11, color:"#555", marginTop:6 }}>{sent} sends from {total} climbs logged</div>
+              </div>
+
+              {/* Outdoor vs gym */}
+              {(outdoorCount > 0 || gymCount > 0) && (
+                <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                  <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>outdoor vs gym</div>
+                  <div style={{ display:"flex", gap:12 }}>
+                    <div style={{ flex: outdoorCount||1, background:"#1a3a1a", border:"1px solid #2a4a2a", borderRadius:6, padding:"10px 14px" }}>
+                      <div style={{ fontSize:22, fontWeight:700, color:"#4caf50" }}>{outdoorCount}</div>
+                      <div style={{ fontSize:10, color:"#4caf50", letterSpacing:"0.1em", marginTop:2 }}>OUTDOOR</div>
+                    </div>
+                    <div style={{ flex: gymCount||1, background:"#06111a", border:"1px solid #1a4a6a", borderRadius:6, padding:"10px 14px" }}>
+                      <div style={{ fontSize:22, fontWeight:700, color:"#4a9fd4" }}>{gymCount}</div>
+                      <div style={{ fontSize:10, color:"#4a9fd4", letterSpacing:"0.1em", marginTop:2 }}>GYM</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Grade pyramid */}
+              <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>sends by grade</div>
+                {hasGradeData ? (
+                  <BarChart data={gradeCounts} color="#f0ede8" />
+                ) : (
+                  <div style={{ fontSize:12, color:"#444", fontStyle:"italic" }}>log {Math.max(0, 3 - gradeCounts.length)} more sends across different grades to unlock</div>
+                )}
+              </div>
+
+              {/* Top locations */}
+              {topLocs.length > 0 && (
+                <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                  <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>top spots</div>
+                  {topLocs.map((l, i) => (
+                    <div key={l.label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderBottom: i < topLocs.length-1 ? "1px solid #1a1a1a" : "none" }}>
+                      <div style={{ fontSize:13, color:"#ddd" }}>{l.label}</div>
+                      <div style={{ fontSize:12, color:"#888", fontWeight:600 }}>{l.value} climbs</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Best conditions — gated at 10 sends */}
+              <div style={{ background:"#141414", border:`1px solid ${hasBestConditions?"#3a2a1a":"#2a2a2a"}`, borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ fontSize:11, color: hasBestConditions?"#e07820":"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:hasBestConditions?10:6 }}>your best conditions</div>
+                {hasBestConditions ? (
+                  <>
+                    <div style={{ fontSize:15, color:"#f0ede8", fontWeight:600, lineHeight:1.5 }}>
+                      You send most on{" "}
+                      {bestConditions.angle && <span style={{ color:"#e07820" }}>{bestConditions.angle}</span>}
+                      {bestConditions.angle && bestConditions.style && " "}
+                      {bestConditions.style && <span style={{ color:"#e07820" }}>{bestConditions.style}</span>}
+                    </div>
+                    <div style={{ fontSize:11, color:"#555", marginTop:6 }}>based on your {sent} sends</div>
+                  </>
+                ) : (
+                  <div style={{ fontSize:12, color:"#444", fontStyle:"italic" }}>
+                    log {Math.max(0, 10 - sent)} more sends to unlock your best conditions
+                    <div style={{ height:4, background:"#1e1e1e", borderRadius:2, marginTop:10 }}>
+                      <div style={{ width:`${Math.min(100,(sent/10)*100)}%`, height:"100%", background:"#3a2a1a", borderRadius:2 }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+        <BottomNav tab={tab} setTab={t => { setTab(t); setScreen(t); }} hasActiveSession={!!activeSession} />
+      </div>
+    );
+  }
+
+  // ── SESSION DETAIL ───────────────────────────────────────────────────────────
+  if (screen === "sessionDetail" && viewingSession) {
     const s = viewingSession;
     const sf = (s.logs||[]).filter(l=>l.first_go===true);
-    const RATING_LABELS = {1:"Drained", 2:"Fatigued", 3:"Felt Good", 4:"Fresh", 5:"Locked In"};
-    const RATING_COLORS = {1:"#c0392b", 2:"#e07820", 3:"#888", 4:"#4caf50", 5:"#7eb8f0"};
     const RATINGS_LIST = [
       { value:1, label:"Drained",   color:"#c0392b", bg:"#1a0808" },
       { value:2, label:"Fatigued",  color:"#e07820", bg:"#1a1008" },
@@ -642,6 +900,9 @@ export default function App({ user, onSignOut }) {
       { value:4, label:"Fresh",     color:"#4caf50", bg:"#0d1f0d" },
       { value:5, label:"Locked In", color:"#7eb8f0", bg:"#06111a" },
     ];
+    const RATING_LABELS = Object.fromEntries(RATINGS_LIST.map(r=>[r.value,r.label]));
+    const RATING_COLORS = Object.fromEntries(RATINGS_LIST.map(r=>[r.value,r.color]));
+
     const saveRating = async (val) => {
       await supabase.from('sessions').update({ session_rating: val }).eq('id', s.id);
       const updated = {...s, session_rating: val};
@@ -658,12 +919,14 @@ export default function App({ user, onSignOut }) {
       setEditingNote(false);
     };
 
+    const backDest = tab === "lookup" ? "lookup" : "home";
+
     return (
       <div style={S.app}><Sheet /><DeleteSessionModal />
-        <div style={S.pageContainer}>
+        <div style={{ padding:"52px 24px 80px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:40 }}>
-            <button style={S.backBtn} onClick={() => {setViewingSession(null);setScreen("home");}}>←</button>
-            <button style={{ ...S.trashBtn, color:"#c0392b", fontSize:12 }} onClick={() => setDeleteSessionTarget(s)}>✕ delete session</button>
+            <button style={S.backBtn} onClick={() => { setViewingSession(null); setScreen(backDest); }}>←</button>
+            <button style={{ ...S.trashBtn, color:"#c0392b", fontSize:12 }} onClick={() => setDeleteSessionTarget(s)}>✕ delete</button>
           </div>
           <div style={S.pageTitle}>{s.location}</div>
           <div style={S.pageSubtitle}>{new Date(s.started_at).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
@@ -673,39 +936,31 @@ export default function App({ user, onSignOut }) {
             <div style={S.statBox}><div style={S.statNum}>{sf.length}</div><div style={S.statLabel}>⚡ first go</div></div>
           </div>
 
-          {/* Rating — tap to edit inline */}
+          {/* Rating inline */}
           {!editingRating ? (
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10, cursor:"pointer" }}
-              onClick={() => setEditingRating(true)}>
+            <div style={{ marginBottom:8, cursor:"pointer" }} onClick={() => setEditingRating(true)}>
               {s.session_rating ? (
-                <div style={{ flex:1, background:"#141414", border:`1px solid ${RATING_COLORS[s.session_rating]}`, borderRadius:6, padding:"10px 16px", display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ background:"#141414", border:`1px solid ${RATING_COLORS[s.session_rating]}`, borderRadius:6, padding:"10px 16px", display:"flex", alignItems:"center", gap:10 }}>
                   <div style={{ width:8, height:8, borderRadius:"50%", background: RATING_COLORS[s.session_rating], flexShrink:0 }} />
                   <div style={{ fontSize:13, fontWeight:700, color: RATING_COLORS[s.session_rating], flex:1 }}>{RATING_LABELS[s.session_rating]}</div>
                   <div style={{ fontSize:11, color:"#555" }}>tap to change</div>
                 </div>
               ) : (
-                <div style={{ flex:1, background:"#141414", border:"1px dashed #2a2a2a", borderRadius:6, padding:"10px 16px", fontSize:12, color:"#555", letterSpacing:"0.06em" }}>
-                  + how did you feel? tap to add
-                </div>
+                <div style={{ background:"#141414", border:"1px dashed #2a2a2a", borderRadius:6, padding:"10px 16px", fontSize:12, color:"#555" }}>+ how did you feel? tap to add</div>
               )}
             </div>
           ) : (
-            <div style={{ marginBottom:10 }}>
+            <div style={{ marginBottom:8 }}>
               <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:8 }}>
                 {RATINGS_LIST.map(r => (
-                  <button key={r.value} onClick={() => saveRating(r.value)} style={{
-                    padding:"10px 16px", borderRadius:6, cursor:"pointer", fontFamily:"'DM Mono',monospace",
-                    textAlign:"left", border:`1px solid ${s.session_rating===r.value ? r.color : "#222"}`,
-                    background: s.session_rating===r.value ? r.bg : "#141414",
-                    fontSize:13, fontWeight:700, color: s.session_rating===r.value ? r.color : "#f0ede8",
-                  }}>{r.label}</button>
+                  <button key={r.value} onClick={() => saveRating(r.value)} style={{ padding:"10px 16px", borderRadius:6, cursor:"pointer", fontFamily:"'DM Mono',monospace", textAlign:"left", border:`1px solid ${s.session_rating===r.value?r.color:"#222"}`, background: s.session_rating===r.value?r.bg:"#141414", fontSize:13, fontWeight:700, color: s.session_rating===r.value?r.color:"#f0ede8" }}>{r.label}</button>
                 ))}
               </div>
               <button style={{ background:"none", border:"none", color:"#555", fontSize:12, cursor:"pointer", fontFamily:"'DM Mono',monospace" }} onClick={() => setEditingRating(false)}>cancel</button>
             </div>
           )}
 
-          {/* Note — tap to edit inline */}
+          {/* Note inline */}
           {!editingNote ? (
             <div style={{ marginBottom:20, cursor:"pointer" }} onClick={() => { setLocalNote(s.session_note||""); setEditingNote(true); }}>
               {s.session_note ? (
@@ -714,16 +969,13 @@ export default function App({ user, onSignOut }) {
                   <span style={{ fontSize:11, color:"#555", flexShrink:0 }}>tap to edit</span>
                 </div>
               ) : (
-                <div style={{ background:"#141414", border:"1px dashed #2a2a2a", borderRadius:6, padding:"10px 16px", fontSize:12, color:"#555", letterSpacing:"0.06em" }}>
-                  + session note — tap to add
-                </div>
+                <div style={{ background:"#141414", border:"1px dashed #2a2a2a", borderRadius:6, padding:"10px 16px", fontSize:12, color:"#555" }}>+ session note tap to add</div>
               )}
             </div>
           ) : (
             <div style={{ marginBottom:20 }}>
               <textarea autoFocus style={{ width:"100%", background:"#141414", border:"1px solid #3a3a3a", borderRadius:6, padding:"12px 16px", color:"#f0ede8", fontSize:14, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7 }}
-                value={localNote} onChange={e => setLocalNote(e.target.value)} rows={3}
-                placeholder="sleep, food, rest days, what you were working on..." />
+                value={localNote} onChange={e => setLocalNote(e.target.value)} rows={3} placeholder="sleep, food, rest days, what you were working on..." />
               <div style={{ display:"flex", gap:8, marginTop:8 }}>
                 <button style={{...S.btnSecondary, flex:1, padding:"10px 0"}} onClick={() => setEditingNote(false)}>cancel</button>
                 <button style={{...S.btnPrimary, flex:2, padding:"10px 0"}} onClick={saveNote}>save</button>
@@ -739,10 +991,10 @@ export default function App({ user, onSignOut }) {
     );
   }
 
-  // SETUP
-  if (screen==="setup") return (
+  // ── SETUP ────────────────────────────────────────────────────────────────────
+  if (screen === "setup") return (
     <div style={S.app}>
-      <div style={S.pageContainer}>
+      <div style={{ padding:"52px 24px 48px" }}>
         <button style={S.backBtn} onClick={goBackSetup}>←</button>
         {setupStep===0 && <><div style={S.setupQ}>where are you?</div><div style={S.setupGrid}><button style={S.setupBtn} onClick={() => pick("outdoor")}><span style={S.setupIcon}>⛰</span>Outdoor</button><button style={S.setupBtn} onClick={() => pick("gym")}><span style={S.setupIcon}>🏟</span>Gym</button></div></>}
         {setupStep===1 && <><div style={S.setupQ}>what are you climbing?</div><div style={S.setupGrid}><button style={S.setupBtn} onClick={() => pick("boulder")}><span style={S.setupIcon}>◈</span>Boulder</button><button style={S.setupBtn} onClick={() => pick("route")}><span style={S.setupIcon}>↑</span>Route</button></div></>}
@@ -755,11 +1007,11 @@ export default function App({ user, onSignOut }) {
     </div>
   );
 
-  // LOGGING
-  if (screen==="logging") {
+  // ── LOGGING ──────────────────────────────────────────────────────────────────
+  if (screen === "logging") {
     if (editingLocation) return (
       <div style={S.app}>
-        <div style={S.pageContainer}>
+        <div style={{ padding:"52px 24px 48px" }}>
           <button style={S.backBtn} onClick={() => setEditingLocation(false)}>←</button>
           <div style={S.setupQ}>rename location</div>
           <input style={S.locationInput} autoFocus value={newLocation} onChange={e => setNewLocation(e.target.value)}
@@ -772,24 +1024,16 @@ export default function App({ user, onSignOut }) {
     return (
       <div style={S.app}>
         <ZapOverlay active={zapActive} /><Sheet />
-
         {justLogged && (
-          <div style={{...S.flash,
-            background: justLogged.first_go?"#fff8e0":justLogged.outcome==="sent"?"#c8f5c8":justLogged.outcome==="repeat"?"#061828":"#1e1e1e",
-            color: justLogged.first_go?"#a06010":justLogged.outcome==="sent"?"#1a5c1a":justLogged.outcome==="repeat"?"#4a9fd4":"#777",
-            border: justLogged.outcome==="project"?"1px solid #2a2a2a":justLogged.outcome==="repeat"?"1px solid #1a4a6a":"none"}}>
+          <div style={{...S.flash, background: justLogged.first_go?"#fff8e0":justLogged.outcome==="sent"?"#c8f5c8":justLogged.outcome==="repeat"?"#061828":"#1e1e1e", color: justLogged.first_go?"#a06010":justLogged.outcome==="sent"?"#1a5c1a":justLogged.outcome==="repeat"?"#4a9fd4":"#777", border: justLogged.outcome==="project"?"1px solid #2a2a2a":justLogged.outcome==="repeat"?"1px solid #1a4a6a":"none"}}>
             {justLogged.first_go?"⚡ first go!":justLogged.outcome==="sent"?"✓ sent":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
           </div>
         )}
 
-        {/* Top bar */}
         <div style={S.topBar}>
           <button style={S.topBarIconBtn} onClick={async () => {
-            if (isAddingClimbs) {
-              await doneAddingClimbs("home");
-            } else {
-              setScreen("home");
-            }
+            if (isAddingClimbs) { await doneAddingClimbs("home"); setTab("home"); }
+            else { setScreen("home"); setTab("home"); }
           }}>⌂</button>
           <div style={{ flex:1, textAlign:"center", padding:"0 8px" }}>
             <div style={S.sessionLocation}>{activeSession?.location}</div>
@@ -803,35 +1047,24 @@ export default function App({ user, onSignOut }) {
           <button style={S.topBarIconBtn} onClick={() => { setNewLocation(activeSession?.location||""); setEditingLocation(true); }}>✎</button>
         </div>
 
-        {/* Climb name — boxed, always visible */}
         <div style={{ padding:"28px 24px 0" }}>
           <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:10 }}>
             {isOutdoor ? "climb name — required" : "climb name — optional"}
           </div>
-          <input
-            style={S.nameInputBoxed}
-            placeholder={isOutdoor ? "e.g. Midnight Lightning" : "e.g. Techno Surfing"}
-            value={climbName}
-            onChange={e => setClimbName(e.target.value)}
-          />
+          <input style={S.nameInputBoxed} placeholder={isOutdoor ? "e.g. Midnight Lightning" : "e.g. Techno Surfing"} value={climbName} onChange={e => setClimbName(e.target.value)} />
         </div>
 
-        {/* Grade */}
         <div style={{ padding:"32px 0 0" }}>
           <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:14, paddingLeft:24 }}>grade</div>
           <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} />
         </div>
 
-        {/* Outcome buttons */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, padding:"28px 24px 0" }}>
           <SentButton disabled={!canLog} onSent={handleSent} onFirstGo={handleFirstGo} />
-          <button style={{...S.outcomeBtn, background:"#150f00", color: canLog?"#e07820":"#2a1a08", border:`1px solid ${canLog?"#3a2010":"#1e1608"}`, opacity:1, transition:"all 0.15s"}}
-            onClick={() => canLog && commitLog("project")}>PROJECT</button>
-          <button style={{...S.outcomeBtn, background:"#06111a", color: canLog?"#4a9fd4":"#0a2030", border:`1px solid ${canLog?"#1a4a6a":"#061018"}`, opacity:1, transition:"all 0.15s"}}
-            onClick={() => canLog && commitLog("repeat")}>REPEAT</button>
+          <button style={{...S.outcomeBtn, background:"#150f00", color:canLog?"#e07820":"#2a1a08", border:`1px solid ${canLog?"#3a2010":"#1e1608"}`, transition:"all 0.15s"}} onClick={() => canLog && commitLog("project")}>PROJECT</button>
+          <button style={{...S.outcomeBtn, background:"#06111a", color:canLog?"#4a9fd4":"#0a2030", border:`1px solid ${canLog?"#1a4a6a":"#061018"}`, transition:"all 0.15s"}} onClick={() => canLog && commitLog("repeat")}>REPEAT</button>
         </div>
 
-        {/* Recent logs */}
         {logs.length > 0 && (
           <div style={{ padding:"20px 24px 140px" }}>
             {logs.slice(0,5).map(l => (
@@ -840,10 +1073,9 @@ export default function App({ user, onSignOut }) {
           </div>
         )}
 
-        {/* END SESSION or DONE ADDING pinned at bottom */}
         <div style={S.endSessionBar}>
           {isAddingClimbs
-            ? <button style={S.endSessionBtn} onClick={doneAddingClimbs}>DONE ADDING</button>
+            ? <button style={S.endSessionBtn} onClick={() => doneAddingClimbs("sessionDetail")}>DONE ADDING</button>
             : <button style={S.endSessionBtn} onClick={endSession}>END SESSION</button>
           }
         </div>
@@ -851,118 +1083,34 @@ export default function App({ user, onSignOut }) {
     );
   }
 
-  // RATING
-  if (screen==="rating") {
-    const RATINGS = [
-      { value:1, label:"Drained",    sub:"running on fumes",              color:"#c0392b", bg:"#1a0808" },
-      { value:2, label:"Fatigued",   sub:"legs were there, mind wasn't",  color:"#e07820", bg:"#1a1008" },
-      { value:3, label:"Felt Good",  sub:"solid session, body cooperated",color:"#888",    bg:"#181818" },
-      { value:4, label:"Fresh",      sub:"could've climbed all day",      color:"#4caf50", bg:"#0d1f0d" },
-      { value:5, label:"Locked In",  sub:"everything clicked",            color:"#7eb8f0", bg:"#06111a" },
-    ];
-
-    const goBackFromRating = async () => {
-      if (activeSession) {
-        // Session not yet finalized — reopen for logging
-        await supabase.from('sessions').update({ ended_at: null }).eq('id', activeSession.id);
-        setScreen("logging");
-      } else {
-        // Session already saved — just go back to summary
-        setScreen("summary");
-      }
-    };
-
-    return (
-      <div style={S.app}>
-        <div style={{ padding:"52px 24px 48px", minHeight:"100vh", display:"flex", flexDirection:"column" }}>
-          <button style={{...S.backBtn, marginBottom:24}} onClick={goBackFromRating}>←</button>
-          <div style={{ fontSize:13, color:"#888", letterSpacing:"0.1em", marginBottom:8 }}>{activeSession?.location}</div>
-          <div style={{ fontSize:22, fontWeight:700, marginBottom:6 }}>how did you feel?</div>
-          <div style={{ fontSize:13, color:"#666", marginBottom:36 }}>builds your training picture over time</div>
-
-          <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:36 }}>
-            {RATINGS.map(r => (
-              <button key={r.value} onClick={() => setSessionRating(prev => prev===r.value ? null : r.value)} style={{
-                padding:"16px 20px", borderRadius:8, cursor:"pointer", fontFamily:"'DM Mono',monospace",
-                textAlign:"left", transition:"all 0.12s", border:`1px solid ${sessionRating===r.value ? r.color : "#222"}`,
-                background: sessionRating===r.value ? r.bg : "#141414",
-                display:"flex", alignItems:"center", justifyContent:"space-between",
-              }}>
-                <div>
-                  <div style={{ fontSize:15, fontWeight:700, color: sessionRating===r.value ? r.color : "#f0ede8", marginBottom:2 }}>{r.label}</div>
-                  <div style={{ fontSize:11, color: sessionRating===r.value ? r.color : "#666", letterSpacing:"0.04em" }}>{r.sub}</div>
-                </div>
-                <div style={{ width:10, height:10, borderRadius:"50%", background: sessionRating===r.value ? r.color : "#222", border:`1px solid ${sessionRating===r.value ? r.color : "#444"}`, flexShrink:0 }} />
-              </button>
-            ))}
-          </div>
-
-          <div style={{ marginBottom:32 }}>
-            <div style={{ fontSize:10, color:"#888", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:10 }}>session note — optional</div>
-            <textarea
-              style={{ width:"100%", background:"#141414", border:"1px solid #2a2a2a", borderRadius:6, padding:"14px 16px", color:"#f0ede8", fontSize:14, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7 }}
-              placeholder="sleep, food, rest days, what you were working on..."
-              value={sessionNote}
-              onChange={e => setSessionNote(e.target.value)}
-              rows={3}
-            />
-          </div>
-
-          <button style={S.startBtn} onClick={handleSeeSummary}>
-            SEE SUMMARY
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // SUMMARY
-  if (screen==="summary" && viewingSession) {
+  // ── SUMMARY ──────────────────────────────────────────────────────────────────
+  if (screen === "summary" && viewingSession) {
     const vs = viewingSession;
     const vSends   = vs.logs.filter(l=>l.outcome==="sent");
     const vFlashes = vs.logs.filter(l=>l.first_go===true);
     const vRepeats = vs.logs.filter(l=>l.outcome==="repeat");
     const vProjects = vs.logs.filter(l=>l.outcome==="project");
     const hardest = vSends.length > 0 ? vSends.reduce((a,b) => gradeSort(a.grade, vs.discipline) >= gradeSort(b.grade, vs.discipline) ? a : b) : null;
-    const RATING_LABELS = {1:"Drained", 2:"Fatigued", 3:"Felt Good", 4:"Fresh", 5:"Locked In"};
-    const RATING_COLORS = {1:"#c0392b", 2:"#e07820", 3:"#888", 4:"#4caf50", 5:"#7eb8f0"};
     return (
       <div style={S.app}><Sheet />
         <div style={{ padding:"52px 24px 80px" }}>
-          {/* Back arrow to rating */}
-          <button style={{...S.backBtn, marginBottom:24}} onClick={() => {
-            setSessionRating(vs.session_rating || null);
-            setSessionNote(vs.session_note || "");
-            setScreen("rating");
-          }}>←</button>
-
-          {/* Header */}
+          <button style={{...S.backBtn, marginBottom:24}} onClick={() => { setViewingSession(null); setScreen("home"); setTab("home"); }}>←</button>
           <div style={{ textAlign:"center", marginBottom:36 }}>
             <div style={{ fontSize:52, marginBottom:12 }}>✓</div>
             <div style={{ fontSize:28, fontWeight:700, letterSpacing:"0.04em", marginBottom:6 }}>{vs.location}</div>
             <div style={{ fontSize:13, color:"#888" }}>{new Date(vs.started_at).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
           </div>
-
-          {/* Big stat row */}
           <div style={S.statsRow}>
             <div style={S.statBox}><div style={S.statNum}>{vs.logs.length}</div><div style={S.statLabel}>climbs</div></div>
             <div style={S.statBox}><div style={S.statNum}>{vSends.length}</div><div style={S.statLabel}>sends</div></div>
             <div style={S.statBox}><div style={S.statNum}>{vFlashes.length}</div><div style={S.statLabel}>⚡ first go</div></div>
           </div>
-
-          {/* Highlights */}
-          <div style={{ display:"flex", gap:8, marginBottom:32, flexWrap:"wrap" }}>
+          <div style={{ display:"flex", gap:8, marginBottom:28, flexWrap:"wrap" }}>
             {hardest && (
               <div style={{ background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:6, padding:"10px 16px", flex:1 }}>
                 <div style={{ fontSize:10, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>hardest send</div>
-                <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{hardest.grade}</div>
+                <div style={{ fontSize:20, fontWeight:700 }}>{hardest.grade}</div>
                 {hardest.name && <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{hardest.name}</div>}
-              </div>
-            )}
-            {vs.session_rating && (
-              <div style={{ background:"#1a1a1a", border:`1px solid ${RATING_COLORS[vs.session_rating]}`, borderRadius:6, padding:"10px 16px", flex:1 }}>
-                <div style={{ fontSize:10, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>felt</div>
-                <div style={{ fontSize:16, fontWeight:700, color: RATING_COLORS[vs.session_rating] }}>{RATING_LABELS[vs.session_rating]}</div>
               </div>
             )}
             {vRepeats.length > 0 && (
@@ -978,18 +1126,9 @@ export default function App({ user, onSignOut }) {
               </div>
             )}
           </div>
-          {vs.session_note && (
-            <div style={{ background:"#141414", border:"1px solid #222", borderRadius:6, padding:"12px 16px", marginBottom:24, fontSize:13, color:"#aaa", lineHeight:1.6 }}>
-              ✎ {vs.session_note}
-            </div>
-          )}
-
-          {/* Climb list */}
           <div style={S.sectionLabel}>climbs this session</div>
           {vs.logs.map(l => <LogDetailRow key={l.id} log={l} onTap={() => openSheet(l)} />)}
-
-          {/* Done button */}
-          <button style={{...S.startBtn, marginTop:36, marginBottom:16}} onClick={() => {setViewingSession(null);setScreen("home");loadSessions();}}>DONE</button>
+          <button style={{...S.startBtn, marginTop:36}} onClick={() => { setViewingSession(null); setScreen("home"); setTab("home"); loadData(); }}>DONE</button>
         </div>
       </div>
     );
@@ -998,41 +1137,37 @@ export default function App({ user, onSignOut }) {
 
 const S = {
   app:{ fontFamily:"'DM Mono','Courier New',monospace", background:"#0e0e0e", minHeight:"100vh", color:"#f0ede8", maxWidth:390, margin:"0 auto", position:"relative", overflowX:"hidden" },
-  homeContainer:{ padding:"56px 24px 160px", display:"flex", flexDirection:"column", minHeight:"100vh" },
-  homeTop:{ marginBottom:32 },
-  logo:{ fontSize:40, fontWeight:700, letterSpacing:"0.15em" },
+  homeTop:{ marginBottom:28 },
+  logo:{ fontSize:36, fontWeight:700, letterSpacing:"0.15em" },
   tagline:{ fontSize:12, color:"#888", letterSpacing:"0.08em", marginTop:4 },
   activeCard:{ background:"#0d1f0d", border:"1px solid #1e3a1e", borderRadius:8, padding:"18px 20px", marginBottom:16, cursor:"pointer" },
   latestCard:{ background:"#161616", border:"1px solid #2a2a2a", borderRadius:8, padding:"18px 20px", marginBottom:16, cursor:"pointer" },
-  addClimbBtn:{ width:"100%", padding:"13px 0", background:"#161616", border:"1px solid #2a2a2a", borderRadius:6, color:"#f0ede8", fontSize:12, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:24, textAlign:"center" },
   endBtnSmall:{ background:"none", border:"1px solid #2a4a2a", color:"#4caf50", padding:"7px 14px", borderRadius:4, fontSize:11, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0 },
-  emptyState:{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:12, color:"#666" },
-  emptyIcon:{ fontSize:52 }, emptyText:{ fontSize:13, letterSpacing:"0.12em" },
   sectionLabel:{ fontSize:10, color:"#888", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:4, paddingTop:4 },
-  sessionList:{ flex:1, marginBottom:16 },
   sessionCard:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 0", borderBottom:"1px solid #161616", cursor:"pointer" },
   sessionCardLocation:{ fontSize:16, fontWeight:600, color:"#e0ddd8" },
   sessionCardMeta:{ fontSize:12, color:"#999", marginTop:3 },
   sessionCardDate:{ fontSize:12, color:"#bbb", fontWeight:600 },
-  trashBtn:{ background:"none", border:"none", color:"#666", fontSize:12, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace", letterSpacing:"0.04em" },
-  floatingBtn:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"16px 24px 36px", background:"linear-gradient(transparent, #0e0e0e 35%)", boxSizing:"border-box" },
+  trashBtn:{ background:"none", border:"none", color:"#666", fontSize:12, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace" },
+  lookupMoreBtn:{ width:"100%", padding:"14px 0", background:"transparent", border:"1px solid #222", borderRadius:6, color:"#888", fontSize:12, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginTop:12, textAlign:"center" },
+  floatingBtn:{ position:"fixed", bottom:64, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"0 24px 12px", background:"linear-gradient(transparent, #0e0e0e 35%)", boxSizing:"border-box" },
   startBtn:{ width:"100%", padding:20, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"block" },
-  signOutBtn:{ width:"100%", padding:10, background:"transparent", color:"#777", border:"none", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:8 },
-  pageContainer:{ padding:"52px 24px 48px", minHeight:"100vh", display:"flex", flexDirection:"column" },
+  signOutBtn:{ width:"100%", padding:8, background:"transparent", color:"#555", border:"none", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:6 },
   backBtn:{ background:"none", border:"none", color:"#aaa", fontSize:22, cursor:"pointer", padding:0, fontFamily:"'DM Mono',monospace", alignSelf:"flex-start" },
   pageTitle:{ fontSize:26, fontWeight:700, letterSpacing:"0.04em", marginBottom:4 },
   pageSubtitle:{ fontSize:12, color:"#888", letterSpacing:"0.05em", marginBottom:28 },
-  statsRow:{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:2, marginBottom:28 },
-  statBox:{ background:"#141414", padding:"18px 12px", textAlign:"center", borderRadius:4 },
-  statNum:{ fontSize:30, fontWeight:700 }, statLabel:{ fontSize:10, color:"#888", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
+  statsRow:{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:2, marginBottom:20 },
+  statBox:{ background:"#141414", padding:"16px 12px", textAlign:"center", borderRadius:4 },
+  statNum:{ fontSize:28, fontWeight:700 }, statLabel:{ fontSize:10, color:"#888", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
   detailRow:{ borderBottom:"1px solid #1a1a1a", paddingBottom:10, marginBottom:2, cursor:"pointer" },
   detailTop:{ display:"flex", alignItems:"center", gap:12, paddingTop:10 },
   detailName:{ flex:1, color:"#ddd", fontSize:14 }, detailGrade:{ fontSize:12, color:"#999", fontWeight:600 },
   tagPills:{ display:"flex", flexWrap:"wrap", gap:6, marginLeft:30, marginTop:6 },
-  pill:{ fontSize:10, color:"#888", background:"#1e1e1e", padding:"3px 8px", borderRadius:10, letterSpacing:"0.04em" },
+  pill:{ fontSize:10, color:"#888", background:"#1e1e1e", padding:"3px 8px", borderRadius:10 },
   noteChip:{ marginLeft:30, marginTop:5, fontSize:12, color:"#888", lineHeight:1.5 },
   addChipDetail:{ marginLeft:30, marginTop:5, fontSize:11, color:"#5aaa5a", letterSpacing:"0.06em", fontWeight:600 },
-  setupQ:{ fontSize:26, fontWeight:600, marginBottom:36, lineHeight:1.3 },
+  addClimbBtn:{ width:"100%", padding:"13px 0", background:"#161616", border:"1px solid #2a2a2a", borderRadius:6, color:"#f0ede8", fontSize:12, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:24, textAlign:"center" },
+  setupQ:{ fontSize:26, fontWeight:600, marginBottom:36, lineHeight:1.3, marginTop:28 },
   setupGrid:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 },
   setupBtn:{ background:"#141414", border:"1px solid #222", borderRadius:8, padding:"28px 16px", color:"#f0ede8", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.05em", display:"flex", flexDirection:"column", alignItems:"center", gap:14 },
   setupIcon:{ fontSize:30 },
