@@ -463,6 +463,7 @@ export default function App({ user, onSignOut }) {
 
   const [sessionRating, setSessionRating] = useState(null);
   const [sessionNote, setSessionNote] = useState("");
+  const [ratingSource, setRatingSource] = useState("logging"); // "logging" | "summary"
 
   const endSession = async () => {
     if (logs.length === 0) {
@@ -476,6 +477,7 @@ export default function App({ user, onSignOut }) {
     clearTimeout(noteTimerRef.current); setNoteWindowId(null);
     // Go to rating screen first, finalize after rating
     setSessionRating(null); setSessionNote("");
+    setRatingSource("logging");
     setScreen("rating");
   };
 
@@ -762,9 +764,29 @@ export default function App({ user, onSignOut }) {
     ];
 
     const goBackToSession = async () => {
-      // Reopen the session so they can keep logging
-      await supabase.from('sessions').update({ ended_at: null }).eq('id', activeSession.id);
-      setScreen("logging");
+      if (ratingSource === "summary") {
+        // Just go back to summary, no need to reopen anything
+        setScreen("summary");
+      } else {
+        // Reopen the session so they can keep logging
+        await supabase.from('sessions').update({ ended_at: null }).eq('id', activeSession.id);
+        setScreen("logging");
+      }
+    };
+
+    const handleSeeSummary = async () => {
+      if (ratingSource === "summary") {
+        // Just update the rating/note on the already-saved session
+        await supabase.from('sessions').update({
+          session_rating: sessionRating || null,
+          session_note: sessionNote?.trim() || null,
+        }).eq('id', viewingSession.id);
+        setViewingSession(prev => ({...prev, session_rating: sessionRating, session_note: sessionNote}));
+        setAllSessions(prev => prev.map(s => s.id===viewingSession.id ? {...s, session_rating: sessionRating, session_note: sessionNote} : s));
+        setScreen("summary");
+      } else {
+        finalizeSession(sessionRating, sessionNote);
+      }
     };
 
     return (
@@ -803,7 +825,7 @@ export default function App({ user, onSignOut }) {
             />
           </div>
 
-          <button style={S.startBtn} onClick={() => finalizeSession(sessionRating, sessionNote)}>
+          <button style={S.startBtn} onClick={handleSeeSummary}>
             SEE SUMMARY
           </button>
         </div>
@@ -879,7 +901,12 @@ export default function App({ user, onSignOut }) {
 
           {/* Done button */}
           <button style={{...S.startBtn, marginTop:36, marginBottom:16}} onClick={() => {setViewingSession(null);setScreen("home");loadSessions();}}>DONE</button>
-          <button style={S.signOutBtn} onClick={() => { setScreen("rating"); }}>← edit how you felt</button>
+          <button style={S.signOutBtn} onClick={() => {
+            setRatingSource("summary");
+            setSessionRating(viewingSession.session_rating || null);
+            setSessionNote(viewingSession.session_note || "");
+            setScreen("rating");
+          }}>← edit how you felt</button>
         </div>
       </div>
     );
