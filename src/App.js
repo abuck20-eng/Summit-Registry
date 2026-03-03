@@ -71,14 +71,14 @@ function SentButton({ disabled, onSent, onFirstGo }) {
   const handlePress = () => {
     if (disabled) return;
     const now = Date.now(); const gap = now - lastTap.current; lastTap.current = now;
-    if (gap < DOUBLE_TAP_MS && gap > 0) { clearTimeout(tapTimer.current); setArmed(false); onFirstGo(); }
-    else { setArmed(true); tapTimer.current = setTimeout(() => { setArmed(false); onSent(); }, DOUBLE_TAP_MS); }
+    if (armed) { clearTimeout(tapTimer.current); setArmed(false); onFirstGo(); }
+    else { setArmed(true); tapTimer.current = setTimeout(() => { setArmed(false); onSent(); }, 3000); }
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
-    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#7ecf82" : "#4caf50", color:"#fff", opacity: disabled ? 0.25 : 1, transform: armed ? "scale(0.97)" : "scale(1)", position:"relative", overflow:"hidden", transition:"background 0.1s, opacity 0.12s, transform 0.08s" }}>
-      {armed ? "⚡ ?" : "SENT"}
-      {armed && <span style={{ position:"absolute", bottom:6, left:0, right:0, fontSize:9, color:"rgba(255,255,255,0.6)", letterSpacing:"0.1em", textAlign:"center" }}>tap again for first go</span>}
+    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#a06010" : "#4caf50", color:"#fff", opacity: disabled ? 0.25 : 1, transform: armed ? "scale(0.97)" : "scale(1)", position:"relative", overflow:"hidden", transition:"background 0.15s, opacity 0.12s, transform 0.08s", boxShadow: armed ? "0 0 0 2px #c07820" : "none" }}>
+      {armed ? "⚡ flash?" : "SENT"}
+      {armed && <span style={{ position:"absolute", bottom:5, left:0, right:0, fontSize:9, color:"rgba(255,255,255,0.7)", letterSpacing:"0.08em", textAlign:"center" }}>tap again to confirm</span>}
     </button>
   );
 }
@@ -339,6 +339,7 @@ export default function App({ user, onSignOut }) {
   const [editingLocation, setEditingLocation] = useState(false);
   const [newLocation, setNewLocation] = useState("");
   const [isAddingClimbs, setIsAddingClimbs] = useState(false);
+  const [firstClimbHint, setFirstClimbHint] = useState(false);
   const [editingRating, setEditingRating] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
   const [localNote, setLocalNote] = useState("");
@@ -413,7 +414,14 @@ export default function App({ user, onSignOut }) {
     const climbData = { name: climbName.trim()||null, grade: selectedGrade, outcome, first_go: firstGo, angles:[], styles:[], note:"", is_gym: isGym };
     const tempId = `temp-${Date.now()}`;
     const tempEntry = { id: tempId, ...climbData, logged_at: new Date().toISOString() };
-    setLogs(prev => [tempEntry,...prev]);
+    setLogs(prev => {
+      const wasEmpty = prev.length === 0;
+      if (wasEmpty && !isAddingClimbs) {
+        setFirstClimbHint(true);
+        setTimeout(() => setFirstClimbHint(false), 4000);
+      }
+      return [tempEntry, ...prev];
+    });
     setJustLogged(tempEntry); setJustLoggedId(tempId);
     setClimbName(""); setSelectedGrade(null);
     setTimeout(() => { setJustLogged(null); setJustLoggedId(null); }, 1800);
@@ -484,6 +492,7 @@ export default function App({ user, onSignOut }) {
     setAllSessions(prev => [newSession, ...prev]);
     setActiveSession(data); setLogs([]); setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
     setIsAddingClimbs(false);
+    setFirstClimbHint(false);
     setScreen("logging");
   };
 
@@ -981,53 +990,6 @@ export default function App({ user, onSignOut }) {
             <div style={S.statBox}><div style={S.statNum}>{sf.length}</div><div style={S.statLabel}>⚡ first go</div></div>
           </div>
 
-          {/* Rating inline */}
-          {!editingRating ? (
-            <div style={{ marginBottom:8, cursor:"pointer" }} onClick={() => setEditingRating(true)}>
-              {s.session_rating ? (
-                <div style={{ background:"#141414", border:`1px solid ${RATING_COLORS[s.session_rating]}`, borderRadius:6, padding:"10px 16px", display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ width:8, height:8, borderRadius:"50%", background: RATING_COLORS[s.session_rating], flexShrink:0 }} />
-                  <div style={{ fontSize:13, fontWeight:700, color: RATING_COLORS[s.session_rating], flex:1 }}>{RATING_LABELS[s.session_rating]}</div>
-                  <div style={{ fontSize:11, color:"#555" }}>tap to change</div>
-                </div>
-              ) : (
-                <div style={{ background:"#141414", border:"1px dashed #2a2a2a", borderRadius:6, padding:"10px 16px", fontSize:12, color:"#555" }}>+ how did you feel? tap to add</div>
-              )}
-            </div>
-          ) : (
-            <div style={{ marginBottom:8 }}>
-              <div style={{ display:"flex", flexDirection:"column", gap:6, marginBottom:8 }}>
-                {RATINGS_LIST.map(r => (
-                  <button key={r.value} onClick={() => saveRating(r.value)} style={{ padding:"10px 16px", borderRadius:6, cursor:"pointer", fontFamily:"'DM Mono',monospace", textAlign:"left", border:`1px solid ${s.session_rating===r.value?r.color:"#222"}`, background: s.session_rating===r.value?r.bg:"#141414", fontSize:13, fontWeight:700, color: s.session_rating===r.value?r.color:"#f0ede8" }}>{r.label}</button>
-                ))}
-              </div>
-              <button style={{ background:"none", border:"none", color:"#555", fontSize:12, cursor:"pointer", fontFamily:"'DM Mono',monospace" }} onClick={() => setEditingRating(false)}>cancel</button>
-            </div>
-          )}
-
-          {/* Note inline */}
-          {!editingNote ? (
-            <div style={{ marginBottom:20, cursor:"pointer" }} onClick={() => { setLocalNote(s.session_note||""); setEditingNote(true); }}>
-              {s.session_note ? (
-                <div style={{ background:"#141414", border:"1px solid #222", borderRadius:6, padding:"10px 16px", fontSize:13, color:"#aaa", lineHeight:1.6, display:"flex", gap:8 }}>
-                  <span style={{ flex:1 }}>✎ {s.session_note}</span>
-                  <span style={{ fontSize:11, color:"#555", flexShrink:0 }}>tap to edit</span>
-                </div>
-              ) : (
-                <div style={{ background:"#141414", border:"1px dashed #2a2a2a", borderRadius:6, padding:"10px 16px", fontSize:12, color:"#555" }}>+ session note tap to add</div>
-              )}
-            </div>
-          ) : (
-            <div style={{ marginBottom:20 }}>
-              <textarea autoFocus style={{ width:"100%", background:"#141414", border:"1px solid #3a3a3a", borderRadius:6, padding:"12px 16px", color:"#f0ede8", fontSize:14, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7 }}
-                value={localNote} onChange={e => setLocalNote(e.target.value)} rows={3} placeholder="sleep, food, rest days, what you were working on..." />
-              <div style={{ display:"flex", gap:8, marginTop:8 }}>
-                <button style={{...S.btnSecondary, flex:1, padding:"10px 0"}} onClick={() => setEditingNote(false)}>cancel</button>
-                <button style={{...S.btnPrimary, flex:2, padding:"10px 0"}} onClick={saveNote}>save</button>
-              </div>
-            </div>
-          )}
-
           <button style={S.addClimbBtn} onClick={() => addClimbsTo(s)}>+ add climb</button>
           <div style={S.sectionLabel}>climbs</div>
           {(s.logs||[]).map(l => <LogDetailRow key={l.id} log={l} onTap={() => openSheet(l)} />)}
@@ -1112,6 +1074,12 @@ export default function App({ user, onSignOut }) {
 
         {logs.length > 0 && (
           <div style={{ padding:"20px 24px 140px" }}>
+            {firstClimbHint && (
+              <div style={{ background:"#1a2a1a", border:"1px solid #2a4a2a", borderRadius:6, padding:"10px 14px", marginBottom:12, fontSize:12, color:"#5aaa5a", letterSpacing:"0.04em", textAlign:"center", animation:"fadeHint 4s ease-out forwards" }}>
+                <style>{`@keyframes fadeHint { 0%{opacity:1} 70%{opacity:1} 100%{opacity:0} }`}</style>
+                tap a climb below to add details, angle & style
+              </div>
+            )}
             {logs.slice(0,5).map(l => (
               <LiveLogRow key={l.id} log={l} isNoteWindow={noteWindowId===l.id} onTap={() => openSheet(l)} isNew={l.id===justLoggedId} />
             ))}
@@ -1139,7 +1107,7 @@ export default function App({ user, onSignOut }) {
     return (
       <div style={S.app}><Sheet />
         <div style={{ padding:"52px 24px 80px" }}>
-          <button style={{...S.backBtn, marginBottom:24}} onClick={() => { setViewingSession(null); setScreen("home"); setTab("home"); }}>←</button>
+          <button style={{...S.backBtn, marginBottom:24}} onClick={() => setScreen("logging")}>←</button>
           <div style={{ textAlign:"center", marginBottom:36 }}>
             <div style={{ fontSize:52, marginBottom:12 }}>✓</div>
             <div style={{ fontSize:28, fontWeight:700, letterSpacing:"0.04em", marginBottom:6 }}>{vs.location}</div>
