@@ -74,9 +74,9 @@ function SentButton({ disabled, onSent, onFirstGo }) {
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
-    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#1a0e00" : "#4caf50", color: armed ? "#e07820" : "#fff", opacity: disabled ? 0.25 : 1, border: armed ? "2px solid #c07820" : "none", transition:"all 0.15s", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}>
+    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#ffe44d" : "#4caf50", color: armed ? "#0e0e0e" : "#fff", opacity: disabled ? 0.25 : 1, border: armed ? "none" : "none", transition:"all 0.15s", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}>
       {armed
-        ? <><span style={{ fontSize:16, fontWeight:700, letterSpacing:"0.08em" }}>⚡ FLASH?</span><span style={{ fontSize:9, color:"#a06010", letterSpacing:"0.06em" }}>tap to confirm</span></>
+        ? <><span style={{ fontSize:16, fontWeight:700, letterSpacing:"0.06em" }}>⚡ FLASH?</span><span style={{ fontSize:9, color:"#555", letterSpacing:"0.06em" }}>tap to confirm</span></>
         : <span>SENT</span>
       }
     </button>
@@ -340,6 +340,7 @@ export default function App({ user, onSignOut }) {
   const [newLocation, setNewLocation] = useState("");
   const [isAddingClimbs, setIsAddingClimbs] = useState(false);
   const [firstClimbHint, setFirstClimbHint] = useState(false);
+  const [sessionOnboardHint, setSessionOnboardHint] = useState(false);
   const [editingRating, setEditingRating] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
   const [localNote, setLocalNote] = useState("");
@@ -347,6 +348,7 @@ export default function App({ user, onSignOut }) {
   const [lookupMode, setLookupMode] = useState("sessions"); // "sessions" | "climbs"
   const [showAllSessions, setShowAllSessions] = useState(false);
   const noteTimerRef = useRef(null);
+  const hintTimerRef = useRef(null);
 
   const grades = discipline === "route" ? ROUTE_GRADES : BOULDER_GRADES;
   const isOutdoor = environment === "outdoor";
@@ -414,14 +416,13 @@ export default function App({ user, onSignOut }) {
     const climbData = { name: climbName.trim()||null, grade: selectedGrade, outcome, first_go: firstGo, angles:[], styles:[], note:"", is_gym: isGym };
     const tempId = `temp-${Date.now()}`;
     const tempEntry = { id: tempId, ...climbData, logged_at: new Date().toISOString() };
-    setLogs(prev => {
-      const wasEmpty = prev.length === 0;
-      if (wasEmpty && !isAddingClimbs) {
-        setFirstClimbHint(true);
-        setTimeout(() => setFirstClimbHint(false), 4000);
-      }
-      return [tempEntry, ...prev];
-    });
+    setLogs(prev => [tempEntry, ...prev]);
+    // Show tap-to-edit hint on every climb for 10 seconds
+    if (!isAddingClimbs) {
+      setFirstClimbHint(true);
+      clearTimeout(hintTimerRef.current);
+      hintTimerRef.current = setTimeout(() => setFirstClimbHint(false), 10000);
+    }
     setJustLogged(tempEntry); setJustLoggedId(tempId);
     setClimbName(""); setSelectedGrade(null);
     setTimeout(() => { setJustLogged(null); setJustLoggedId(null); }, 1800);
@@ -493,6 +494,11 @@ export default function App({ user, onSignOut }) {
     setActiveSession(data); setLogs([]); setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
     setIsAddingClimbs(false);
     setFirstClimbHint(false);
+    // Show onboard hint only on user's very first session
+    if (allSessions.length === 0) {
+      setSessionOnboardHint(true);
+      setTimeout(() => setSessionOnboardHint(false), 8000);
+    }
     setScreen("logging");
   };
 
@@ -1053,6 +1059,15 @@ export default function App({ user, onSignOut }) {
           </div>
           <button style={S.topBarIconBtn} onClick={() => { setNewLocation(activeSession?.location||""); setEditingLocation(true); }}>✎</button>
         </div>
+
+        {sessionOnboardHint && (
+          <div style={{ margin:"14px 24px 0", background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"12px 16px", fontSize:12, color:"#aaa", lineHeight:1.7, animation:"fadeHint 8s ease-out forwards" }}>
+            {isGym
+              ? <>move the slider to set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:"#e07820", fontWeight:700 }}>PROJECT</span>, or <span style={{ color:"#4a9fd4", fontWeight:700 }}>REPEAT</span> to log your first climb</>
+              : <>add the climb name, move the slider to set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:"#e07820", fontWeight:700 }}>PROJECT</span>, or <span style={{ color:"#4a9fd4", fontWeight:700 }}>REPEAT</span></>
+            }
+          </div>
+        )}
 
         <div style={{ padding:"28px 24px 0" }}>
           <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:10 }}>
