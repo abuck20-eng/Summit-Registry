@@ -70,7 +70,7 @@ function SentButton({ disabled, onSent, onFirstGo }) {
   const handlePress = () => {
     if (disabled) return;
     if (armed) { clearTimeout(tapTimer.current); setArmed(false); onFirstGo(); }
-    else { setArmed(true); tapTimer.current = setTimeout(() => { setArmed(false); onSent(); }, 2000); }
+    else { setArmed(true); tapTimer.current = setTimeout(() => { setArmed(false); onSent(); }, 1500); }
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
@@ -273,21 +273,29 @@ function LogDetailRow({ log, onTap }) {
   );
 }
 
-// ── Simple SVG bar chart ──────────────────────────────────────────────────────
-function BarChart({ data, color = "#f0ede8" }) {
+// ── Tappable bar chart ────────────────────────────────────────────────────────
+function BarChart({ data, color = "#f0ede8", unit = "" }) {
+  const [tapped, setTapped] = useState(null);
   if (!data || data.length === 0) return null;
   const max = Math.max(...data.map(d => d.value), 1);
-  const barW = Math.min(28, Math.floor(300 / data.length) - 4);
+  const shortLabel = (l) => l.startsWith("5.") ? l.slice(2) : l;
   return (
     <div style={{ overflowX:"auto", paddingBottom:4 }}>
-      <div style={{ display:"flex", alignItems:"flex-end", gap:3, height:80, minWidth: data.length * (barW + 3) }}>
+      <div style={{ display:"flex", alignItems:"flex-end", gap:3, height:96, minWidth: data.length * 26 }}>
         {data.map((d, i) => (
-          <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flex:1 }}>
-            <div style={{ width:"100%", maxWidth:barW, background: color, borderRadius:"2px 2px 0 0", height: Math.max(3, (d.value / max) * 68), opacity: d.value === 0 ? 0.15 : 0.9, transition:"height 0.3s" }} />
-            <div style={{ fontSize:9, color:"#666", letterSpacing:"0.04em", textAlign:"center", maxWidth:barW+4, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{d.label}</div>
+          <div key={i} onClick={() => setTapped(tapped===i ? null : i)}
+            style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flex:1, cursor:"pointer", position:"relative" }}>
+            {tapped === i && (
+              <div style={{ position:"absolute", top:-26, left:"50%", transform:"translateX(-50%)", background:"#f0ede8", color:"#0e0e0e", fontSize:10, fontWeight:700, borderRadius:3, padding:"2px 6px", whiteSpace:"nowrap", zIndex:10 }}>
+                {d.value}{unit}
+              </div>
+            )}
+            <div style={{ width:"100%", maxWidth:26, background: tapped===i ? "#fff" : color, borderRadius:"2px 2px 0 0", height: Math.max(3, (d.value / max) * 72), opacity: tapped===i ? 1 : 0.85, transition:"all 0.15s" }} />
+            <div style={{ fontSize:9, color: tapped===i ? "#f0ede8" : "#666", letterSpacing:"0.02em", textAlign:"center", maxWidth:28, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{shortLabel(d.label)}</div>
           </div>
         ))}
       </div>
+      <div style={{ fontSize:10, color:"#444", marginTop:6, letterSpacing:"0.06em" }}>tap a bar to see value</div>
     </div>
   );
 }
@@ -434,6 +442,7 @@ export default function App({ user, onSignOut }) {
 
   const showTapHint = () => {
     if (isAddingClimbs) return;
+    setSessionOnboardHint(false);
     setFirstClimbHint(true);
     clearTimeout(hintTimerRef.current);
     hintTimerRef.current = setTimeout(() => setFirstClimbHint(false), 10000);
@@ -495,9 +504,8 @@ export default function App({ user, onSignOut }) {
     setActiveSession(data); setLogs([]); setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
     setIsAddingClimbs(false);
     setFirstClimbHint(false);
-    // Show onboard hint every time a new session starts
+    // Show onboard hint every time a new session starts — persists until first climb logged
     setSessionOnboardHint(true);
-    setTimeout(() => setSessionOnboardHint(false), 8000);
     setScreen("logging");
   };
 
@@ -586,7 +594,7 @@ export default function App({ user, onSignOut }) {
       // Top locations for this discipline
       const locMap = {};
       discSessions.forEach(s => { if (s.location) locMap[s.location] = (locMap[s.location]||0) + (s.logs||[]).filter(l => gradeList.includes(l.grade)).length; });
-      const topLocs = Object.entries(locMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([label,value])=>({label,value}));
+      const topLocs = Object.entries(locMap).sort((a,b)=>b[1]-a[1]).map(([label,value])=>({label,value}));
 
       // Best conditions on sends
       let bestConditions = null;
@@ -812,12 +820,27 @@ export default function App({ user, onSignOut }) {
     const { total, sent, flashed, sessions, locations, gradeCounts, flashByGrade, topLocs, bestConditions, outdoorCount, gymCount } = d;
     const hasData = total >= 1;
     const hasGradeData = gradeCounts.length >= 3;
-    const hasFlashData = flashByGrade.length >= 2;
     const hasBestConditions = !!bestConditions;
-    const overallFlashPct = sent > 0 ? Math.round((flashed / sent) * 100) : 0;
+    const [showBestExplain, setShowBestExplain] = useState(false);
 
     return (
       <div style={S.app}>
+        {showBestExplain && (
+          <div style={S.overlay} onClick={() => setShowBestExplain(false)}>
+            <div style={S.sheet} onClick={e => e.stopPropagation()}>
+              <div style={S.sheetHandle} />
+              <div style={{ fontSize:14, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>how this is calculated</div>
+              <div style={{ fontSize:14, color:"#f0ede8", lineHeight:1.8, marginBottom:16 }}>
+                We look at all your sends and count which <span style={{ color:"#e07820" }}>angles</span> and <span style={{ color:"#e07820" }}>styles</span> appear most often.
+              </div>
+              <div style={{ fontSize:13, color:"#888", lineHeight:1.7, marginBottom:20 }}>
+                The top angle and top style from your {sent} sends are combined to give you your preferred climbing conditions. The more you tag, the more accurate this gets.
+              </div>
+              <button style={{ ...S.btnPrimary, width:"100%" }} onClick={() => setShowBestExplain(false)}>got it</button>
+            </div>
+          </div>
+        )}
+
         <div style={{ padding:"52px 24px 160px" }}>
           <div style={S.homeTop}><div style={S.logo}>INSIGHTS</div><div style={S.tagline}>your climbing data</div></div>
 
@@ -856,33 +879,11 @@ export default function App({ user, onSignOut }) {
                 ))}
               </div>
 
-              {/* Flash % overall */}
-              <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
-                  <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase" }}>flash rate</div>
-                  <div style={{ fontSize:28, fontWeight:700, color:"#c07820" }}>{overallFlashPct}%</div>
-                </div>
-                <div style={{ height:6, background:"#1e1e1e", borderRadius:3, marginBottom:6 }}>
-                  <div style={{ width:`${overallFlashPct}%`, height:"100%", background:"#c07820", borderRadius:3, transition:"width 0.4s" }} />
-                </div>
-                <div style={{ fontSize:11, color:"#555" }}>{flashed} ⚡ flashes from {sent} sends</div>
-              </div>
-
-              {/* Flash % by grade */}
-              <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
-                <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>flash % by grade</div>
-                {hasFlashData ? (
-                  <BarChart data={flashByGrade} color="#c07820" />
-                ) : (
-                  <div style={{ fontSize:12, color:"#444", fontStyle:"italic" }}>log more flashes across different grades to unlock</div>
-                )}
-              </div>
-
               {/* Sends by grade */}
               <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
                 <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>sends by grade</div>
                 {hasGradeData ? (
-                  <BarChart data={gradeCounts} color="#f0ede8" />
+                  <BarChart data={gradeCounts} color="#f0ede8" unit=" sends" />
                 ) : (
                   <div style={{ fontSize:12, color:"#444", fontStyle:"italic" }}>log {Math.max(0, 3 - gradeCounts.length)} more sends across different grades to unlock</div>
                 )}
@@ -905,31 +906,34 @@ export default function App({ user, onSignOut }) {
                 </div>
               )}
 
-              {/* Top spots */}
+              {/* Top spots — top 5 visible, rest scrollable */}
               {topLocs.length > 0 && (
                 <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
                   <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>top spots</div>
-                  {topLocs.map((l, i) => (
-                    <div key={l.label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"6px 0", borderBottom: i < topLocs.length-1 ? "1px solid #1a1a1a" : "none" }}>
-                      <div style={{ fontSize:13, color:"#ddd" }}>{l.label}</div>
-                      <div style={{ fontSize:12, color:"#888", fontWeight:600 }}>{l.value} climbs</div>
-                    </div>
-                  ))}
+                  <div style={{ maxHeight: topLocs.length > 5 ? 210 : "none", overflowY: topLocs.length > 5 ? "auto" : "visible" }}>
+                    {topLocs.map((l, i) => (
+                      <div key={l.label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom: i < topLocs.length-1 ? "1px solid #1a1a1a" : "none" }}>
+                        <div style={{ fontSize:13, color: i < 3 ? "#ddd" : "#888" }}>{i===0?"🥇 ":i===1?"🥈 ":i===2?"🥉 ":""}{l.label}</div>
+                        <div style={{ fontSize:12, color:"#888", fontWeight:600, flexShrink:0, marginLeft:8 }}>{l.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {topLocs.length > 5 && <div style={{ fontSize:10, color:"#444", marginTop:8, letterSpacing:"0.06em" }}>scroll to see all {topLocs.length} spots</div>}
                 </div>
               )}
 
-              {/* Best conditions */}
-              <div style={{ background:"#141414", border:`1px solid ${hasBestConditions?"#3a2a1a":"#2a2a2a"}`, borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
-                <div style={{ fontSize:11, color: hasBestConditions?"#e07820":"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8 }}>your best conditions</div>
+              {/* Best conditions — tappable for explanation */}
+              <div style={{ background:"#141414", border:`1px solid ${hasBestConditions?"#3a2a1a":"#2a2a2a"}`, borderRadius:8, padding:"16px 20px", marginBottom:16, cursor: hasBestConditions ? "pointer" : "default" }}
+                onClick={() => hasBestConditions && setShowBestExplain(true)}>
+                <div style={{ fontSize:11, color: hasBestConditions?"#e07820":"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8 }}>preferred style</div>
                 {hasBestConditions ? (
                   <>
-                    <div style={{ fontSize:15, color:"#f0ede8", fontWeight:600, lineHeight:1.5 }}>
-                      You send most on{" "}
+                    <div style={{ fontSize:15, color:"#f0ede8", fontWeight:600, lineHeight:1.6 }}>
                       {bestConditions.angle && <span style={{ color:"#e07820" }}>{bestConditions.angle}</span>}
-                      {bestConditions.angle && bestConditions.style && " "}
+                      {bestConditions.angle && bestConditions.style && <span style={{ color:"#555" }}> · </span>}
                       {bestConditions.style && <span style={{ color:"#e07820" }}>{bestConditions.style}</span>}
                     </div>
-                    <div style={{ fontSize:11, color:"#555", marginTop:6 }}>based on {sent} sends</div>
+                    <div style={{ fontSize:11, color:"#555", marginTop:6 }}>based on {sent} sends · tap to learn more</div>
                   </>
                 ) : (
                   <div style={{ fontSize:12, color:"#444", fontStyle:"italic" }}>
@@ -1060,11 +1064,12 @@ export default function App({ user, onSignOut }) {
         </div>
 
         {sessionOnboardHint && (
-          <div style={{ margin:"14px 24px 0", background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"12px 16px", fontSize:12, color:"#aaa", lineHeight:1.7, animation:"fadeHint 8s ease-out forwards" }}>
+          <div onClick={() => setSessionOnboardHint(false)} style={{ margin:"14px 24px 0", background:"#1a2a1a", border:"1px solid #2a4a2a", borderRadius:8, padding:"12px 16px", fontSize:12, color:"#aaa", lineHeight:1.8, cursor:"pointer" }}>
             {isGym
               ? <>move the slider to set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:"#e07820", fontWeight:700 }}>PROJECT</span>, or <span style={{ color:"#4a9fd4", fontWeight:700 }}>REPEAT</span> to log your first climb</>
-              : <>add the climb name, move the slider to set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:"#e07820", fontWeight:700 }}>PROJECT</span>, or <span style={{ color:"#4a9fd4", fontWeight:700 }}>REPEAT</span></>
+              : <>add the climb name, set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:"#e07820", fontWeight:700 }}>PROJECT</span>, or <span style={{ color:"#4a9fd4", fontWeight:700 }}>REPEAT</span></>
             }
+            <div style={{ fontSize:10, color:"#4a7a4a", marginTop:6, letterSpacing:"0.06em" }}>tap to dismiss</div>
           </div>
         )}
 
