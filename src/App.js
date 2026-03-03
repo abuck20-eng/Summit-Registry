@@ -461,6 +461,9 @@ export default function App({ user, onSignOut }) {
     setScreen("logging");
   };
 
+  const [sessionRating, setSessionRating] = useState(null);
+  const [sessionNote, setSessionNote] = useState("");
+
   const endSession = async () => {
     if (logs.length === 0) {
       const confirmed = window.confirm("No climbs logged — end session anyway? It won't be saved.");
@@ -471,8 +474,18 @@ export default function App({ user, onSignOut }) {
       setScreen("home"); return;
     }
     clearTimeout(noteTimerRef.current); setNoteWindowId(null);
-    await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
-    const done = {...activeSession, logs, ended_at: new Date().toISOString()};
+    // Go to rating screen first, finalize after rating
+    setSessionRating(null); setSessionNote("");
+    setScreen("rating");
+  };
+
+  const finalizeSession = async (rating, note) => {
+    await supabase.from('sessions').update({
+      ended_at: new Date().toISOString(),
+      session_rating: rating || null,
+      session_note: note?.trim() || null,
+    }).eq('id', activeSession.id);
+    const done = {...activeSession, logs, ended_at: new Date().toISOString(), session_rating: rating, session_note: note};
     setAllSessions(prev => [done,...prev.filter(s => s.id!==activeSession.id)]);
     setActiveSession(null); setViewingSession(done); setScreen("summary");
   };
@@ -718,6 +731,61 @@ export default function App({ user, onSignOut }) {
     );
   }
 
+  // RATING
+  if (screen==="rating") {
+    const RATINGS = [
+      { value:1, label:"Drained",    sub:"running on fumes",        color:"#c0392b", bg:"#1a0808" },
+      { value:2, label:"Fatigued",   sub:"legs were there, mind wasn't", color:"#e07820", bg:"#1a1008" },
+      { value:3, label:"Felt Good",  sub:"solid session, body cooperated", color:"#888",    bg:"#181818" },
+      { value:4, label:"Fresh",      sub:"could've climbed all day", color:"#4caf50", bg:"#0d1f0d" },
+      { value:5, label:"Locked In",  sub:"everything clicked",      color:"#7eb8f0", bg:"#06111a" },
+    ];
+    return (
+      <div style={S.app}>
+        <div style={{ padding:"52px 24px 48px", minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+          <div style={{ fontSize:13, color:"#888", letterSpacing:"0.1em", marginBottom:8 }}>{activeSession?.location}</div>
+          <div style={{ fontSize:22, fontWeight:700, marginBottom:6 }}>how did you feel?</div>
+          <div style={{ fontSize:13, color:"#666", marginBottom:36 }}>this builds your training picture over time</div>
+
+          <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:36 }}>
+            {RATINGS.map(r => (
+              <button key={r.value} onClick={() => setSessionRating(r.value)} style={{
+                padding:"16px 20px", borderRadius:8, cursor:"pointer", fontFamily:"'DM Mono',monospace",
+                textAlign:"left", transition:"all 0.12s", border:`1px solid ${sessionRating===r.value ? r.color : "#222"}`,
+                background: sessionRating===r.value ? r.bg : "#141414",
+                display:"flex", alignItems:"center", justifyContent:"space-between",
+              }}>
+                <div>
+                  <div style={{ fontSize:15, fontWeight:700, color: sessionRating===r.value ? r.color : "#f0ede8", marginBottom:2 }}>{r.label}</div>
+                  <div style={{ fontSize:11, color: sessionRating===r.value ? r.color : "#666", letterSpacing:"0.04em" }}>{r.sub}</div>
+                </div>
+                <div style={{ width:10, height:10, borderRadius:"50%", background: sessionRating===r.value ? r.color : "#222", border:`1px solid ${sessionRating===r.value ? r.color : "#444"}`, flexShrink:0 }} />
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginBottom:28 }}>
+            <div style={{ fontSize:10, color:"#888", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:10 }}>session note — optional</div>
+            <textarea
+              style={{ width:"100%", background:"#141414", border:"1px solid #2a2a2a", borderRadius:6, padding:"14px 16px", color:"#f0ede8", fontSize:14, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7 }}
+              placeholder="sleep, food, rest days, what you were working on..."
+              value={sessionNote}
+              onChange={e => setSessionNote(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          <button style={{...S.startBtn, opacity: sessionRating ? 1 : 0.4}} onClick={() => sessionRating && finalizeSession(sessionRating, sessionNote)}>
+            SEE SUMMARY
+          </button>
+          <button style={{...S.signOutBtn, marginTop:12}} onClick={() => finalizeSession(null, sessionNote)}>
+            skip rating
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // SUMMARY
   if (screen==="summary" && viewingSession) {
     const vs = viewingSession;
@@ -726,6 +794,8 @@ export default function App({ user, onSignOut }) {
     const vRepeats = vs.logs.filter(l=>l.outcome==="repeat");
     const vProjects = vs.logs.filter(l=>l.outcome==="project");
     const hardest = vSends.length > 0 ? vSends.reduce((a,b) => gradeSort(a.grade, vs.discipline) >= gradeSort(b.grade, vs.discipline) ? a : b) : null;
+    const RATING_LABELS = {1:"Drained", 2:"Fatigued", 3:"Felt Good", 4:"Fresh", 5:"Locked In"};
+    const RATING_COLORS = {1:"#c0392b", 2:"#e07820", 3:"#888", 4:"#4caf50", 5:"#7eb8f0"};
     return (
       <div style={S.app}><Sheet />
         <div style={{ padding:"52px 24px 80px" }}>
@@ -753,6 +823,12 @@ export default function App({ user, onSignOut }) {
                 {hardest.name && <div style={{ fontSize:11, color:"#888", marginTop:2 }}>{hardest.name}</div>}
               </div>
             )}
+            {vs.session_rating && (
+              <div style={{ background:"#1a1a1a", border:`1px solid ${RATING_COLORS[vs.session_rating]}`, borderRadius:6, padding:"10px 16px", flex:1 }}>
+                <div style={{ fontSize:10, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>felt</div>
+                <div style={{ fontSize:16, fontWeight:700, color: RATING_COLORS[vs.session_rating] }}>{RATING_LABELS[vs.session_rating]}</div>
+              </div>
+            )}
             {vRepeats.length > 0 && (
               <div style={{ background:"#06111a", border:"1px solid #1a4a6a", borderRadius:6, padding:"10px 16px", flex:1 }}>
                 <div style={{ fontSize:10, color:"#4a9fd4", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>repeats</div>
@@ -766,6 +842,11 @@ export default function App({ user, onSignOut }) {
               </div>
             )}
           </div>
+          {vs.session_note && (
+            <div style={{ background:"#141414", border:"1px solid #222", borderRadius:6, padding:"12px 16px", marginBottom:24, fontSize:13, color:"#aaa", lineHeight:1.6 }}>
+              ✎ {vs.session_note}
+            </div>
+          )}
 
           {/* Climb list */}
           <div style={S.sectionLabel}>climbs this session</div>
