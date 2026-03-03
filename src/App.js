@@ -604,6 +604,8 @@ export default function App({ user, onSignOut }) {
     const s = viewingSession;
     const sf = (s.logs||[]).filter(l=>l.first_go===true);
     const isThisActive = activeSession?.id === s.id;
+    const RATING_LABELS = {1:"Drained", 2:"Fatigued", 3:"Felt Good", 4:"Fresh", 5:"Locked In"};
+    const RATING_COLORS = {1:"#c0392b", 2:"#e07820", 3:"#888", 4:"#4caf50", 5:"#7eb8f0"};
     return (
       <div style={S.app}><Sheet /><DeleteSessionModal />
         <div style={S.pageContainer}>
@@ -618,6 +620,24 @@ export default function App({ user, onSignOut }) {
             <div style={S.statBox}><div style={S.statNum}>{(s.logs||[]).filter(l=>l.outcome==="sent").length}</div><div style={S.statLabel}>sends</div></div>
             <div style={S.statBox}><div style={S.statNum}>{sf.length}</div><div style={S.statLabel}>⚡ first go</div></div>
           </div>
+
+          {/* Rating and note if present */}
+          {(s.session_rating || s.session_note) && (
+            <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:24 }}>
+              {s.session_rating && (
+                <div style={{ display:"flex", alignItems:"center", gap:10, background:"#141414", border:`1px solid ${RATING_COLORS[s.session_rating]}`, borderRadius:6, padding:"10px 16px" }}>
+                  <div style={{ width:8, height:8, borderRadius:"50%", background: RATING_COLORS[s.session_rating], flexShrink:0 }} />
+                  <div style={{ fontSize:13, fontWeight:700, color: RATING_COLORS[s.session_rating] }}>{RATING_LABELS[s.session_rating]}</div>
+                </div>
+              )}
+              {s.session_note && (
+                <div style={{ background:"#141414", border:"1px solid #222", borderRadius:6, padding:"10px 16px", fontSize:13, color:"#aaa", lineHeight:1.6 }}>
+                  ✎ {s.session_note}
+                </div>
+              )}
+            </div>
+          )}
+
           <button style={S.addClimbBtn} onClick={() => reopenSession(s)}>
             {isThisActive ? "● continue logging" : "+ add climb"}
           </button>
@@ -734,22 +754,30 @@ export default function App({ user, onSignOut }) {
   // RATING
   if (screen==="rating") {
     const RATINGS = [
-      { value:1, label:"Drained",    sub:"running on fumes",        color:"#c0392b", bg:"#1a0808" },
-      { value:2, label:"Fatigued",   sub:"legs were there, mind wasn't", color:"#e07820", bg:"#1a1008" },
-      { value:3, label:"Felt Good",  sub:"solid session, body cooperated", color:"#888",    bg:"#181818" },
-      { value:4, label:"Fresh",      sub:"could've climbed all day", color:"#4caf50", bg:"#0d1f0d" },
-      { value:5, label:"Locked In",  sub:"everything clicked",      color:"#7eb8f0", bg:"#06111a" },
+      { value:1, label:"Drained",    sub:"running on fumes",              color:"#c0392b", bg:"#1a0808" },
+      { value:2, label:"Fatigued",   sub:"legs were there, mind wasn't",  color:"#e07820", bg:"#1a1008" },
+      { value:3, label:"Felt Good",  sub:"solid session, body cooperated",color:"#888",    bg:"#181818" },
+      { value:4, label:"Fresh",      sub:"could've climbed all day",      color:"#4caf50", bg:"#0d1f0d" },
+      { value:5, label:"Locked In",  sub:"everything clicked",            color:"#7eb8f0", bg:"#06111a" },
     ];
+
+    const goBackToSession = async () => {
+      // Reopen the session so they can keep logging
+      await supabase.from('sessions').update({ ended_at: null }).eq('id', activeSession.id);
+      setScreen("logging");
+    };
+
     return (
       <div style={S.app}>
         <div style={{ padding:"52px 24px 48px", minHeight:"100vh", display:"flex", flexDirection:"column" }}>
+          <button style={{...S.backBtn, marginBottom:24}} onClick={goBackToSession}>←</button>
           <div style={{ fontSize:13, color:"#888", letterSpacing:"0.1em", marginBottom:8 }}>{activeSession?.location}</div>
           <div style={{ fontSize:22, fontWeight:700, marginBottom:6 }}>how did you feel?</div>
-          <div style={{ fontSize:13, color:"#666", marginBottom:36 }}>this builds your training picture over time</div>
+          <div style={{ fontSize:13, color:"#666", marginBottom:36 }}>builds your training picture over time</div>
 
           <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:36 }}>
             {RATINGS.map(r => (
-              <button key={r.value} onClick={() => setSessionRating(r.value)} style={{
+              <button key={r.value} onClick={() => setSessionRating(prev => prev===r.value ? null : r.value)} style={{
                 padding:"16px 20px", borderRadius:8, cursor:"pointer", fontFamily:"'DM Mono',monospace",
                 textAlign:"left", transition:"all 0.12s", border:`1px solid ${sessionRating===r.value ? r.color : "#222"}`,
                 background: sessionRating===r.value ? r.bg : "#141414",
@@ -764,7 +792,7 @@ export default function App({ user, onSignOut }) {
             ))}
           </div>
 
-          <div style={{ marginBottom:28 }}>
+          <div style={{ marginBottom:32 }}>
             <div style={{ fontSize:10, color:"#888", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:10 }}>session note — optional</div>
             <textarea
               style={{ width:"100%", background:"#141414", border:"1px solid #2a2a2a", borderRadius:6, padding:"14px 16px", color:"#f0ede8", fontSize:14, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7 }}
@@ -775,11 +803,8 @@ export default function App({ user, onSignOut }) {
             />
           </div>
 
-          <button style={{...S.startBtn, opacity: sessionRating ? 1 : 0.4}} onClick={() => sessionRating && finalizeSession(sessionRating, sessionNote)}>
+          <button style={S.startBtn} onClick={() => finalizeSession(sessionRating, sessionNote)}>
             SEE SUMMARY
-          </button>
-          <button style={{...S.signOutBtn, marginTop:12}} onClick={() => finalizeSession(null, sessionNote)}>
-            skip rating
           </button>
         </div>
       </div>
@@ -854,7 +879,7 @@ export default function App({ user, onSignOut }) {
 
           {/* Done button */}
           <button style={{...S.startBtn, marginTop:36, marginBottom:16}} onClick={() => {setViewingSession(null);setScreen("home");loadSessions();}}>DONE</button>
-          <button style={S.signOutBtn} onClick={() => { setScreen("sessionDetail"); }}>← back to session</button>
+          <button style={S.signOutBtn} onClick={() => { setScreen("rating"); }}>← edit how you felt</button>
         </div>
       </div>
     );
