@@ -429,8 +429,7 @@ export default function App({ user, onSignOut }) {
     setScreen("logging");
   };
 
-  const doneAddingClimbs = async () => {
-    // Refresh the session's climbs and go back to session detail
+  const doneAddingClimbs = async (goTo) => {
     clearTimeout(noteTimerRef.current); setNoteWindowId(null);
     const { data: climbs } = await supabase.from('climbs').select('*').eq('session_id', activeSession.id).order('logged_at', { ascending: false });
     const updated = {...viewingSession, logs: climbs || []};
@@ -438,7 +437,7 @@ export default function App({ user, onSignOut }) {
     setAllSessions(prev => prev.map(s => s.id===activeSession.id ? updated : s));
     setActiveSession(null); setLogs([]);
     setIsAddingClimbs(false);
-    setScreen("sessionDetail");
+    setScreen(goTo || "sessionDetail");
   };
 
   const startSetup = () => { setSetupStep(0); setEnvironment(null); setDiscipline(null); setLocation(""); setScreen("setup"); };
@@ -623,7 +622,7 @@ export default function App({ user, onSignOut }) {
           )}
         </div>
         <div style={S.floatingBtn}>
-          {!activeSession && <button style={S.startBtn} onClick={startSetup}>START SESSION</button>}
+          {!activeSession && !loadingSessions && <button style={S.startBtn} onClick={startSetup}>START SESSION</button>}
           <button style={S.signOutBtn} onClick={onSignOut}>sign out</button>
         </div>
       </div>
@@ -785,7 +784,13 @@ export default function App({ user, onSignOut }) {
 
         {/* Top bar */}
         <div style={S.topBar}>
-          <button style={S.topBarIconBtn} onClick={() => setScreen("home")}>⌂</button>
+          <button style={S.topBarIconBtn} onClick={async () => {
+            if (isAddingClimbs) {
+              await doneAddingClimbs("home");
+            } else {
+              setScreen("home");
+            }
+          }}>⌂</button>
           <div style={{ flex:1, textAlign:"center", padding:"0 8px" }}>
             <div style={S.sessionLocation}>{activeSession?.location}</div>
             <div style={S.sessionMeta}>
