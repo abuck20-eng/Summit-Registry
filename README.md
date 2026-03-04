@@ -7,7 +7,7 @@ Live app: https://summit-registry.vercel.app
 - Log climbs by grade, outcome, angle, and style
 - Track sessions across gym and outdoor locations
 - Insights dashboard with sends by grade and style analysis broken out by discipline
-- Works on iPhone as a home screen app
+- Works on mobile as a home screen app
 
 ## Stack
 React · Supabase · Vercel
