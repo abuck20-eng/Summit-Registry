@@ -208,7 +208,7 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
 }
 
 // ── Live log row (logging screen) ─────────────────────────────────────────────
-function LiveLogRow({ log, isNoteWindow, onTap, isNew }) {
+function LiveLogRow({ log, isNoteWindow, onTap, onDupe, isNew }) {
   const hasTags = log.angles?.length > 0 || log.styles?.length > 0;
   const hasAnything = hasTags || log.note || log.first_go;
   const showWindow = isNoteWindow && !hasAnything;
@@ -217,21 +217,24 @@ function LiveLogRow({ log, isNoteWindow, onTap, isNew }) {
   return (
     <div style={{ ...S.logRowWrap, animation: isNew ? "pulseRow 0.5s ease-out" : "none", borderLeft: showWindow ? "2px solid #4caf50" : "2px solid transparent", paddingLeft: 8, transition:"border-color 0.3s" }}>
       <style>{`@keyframes pulseRow { 0%{background:#1a2a1a} 100%{background:transparent} }`}</style>
-      <div style={S.logRow} onClick={onTap}>
-        <div style={{ display:"flex", alignItems:"flex-start", gap:10, flex:1, minWidth:0 }}>
-          <span style={{ width:9, height:9, borderRadius:"50%", flexShrink:0, marginTop:5, display:"inline-block", background: isSent ? "#4caf50" : "transparent", border: isSent ? "none" : isRepeat ? "2px solid #4a9fd4" : "2px solid #e07820" }} />
-          <div style={{ minWidth:0 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <span style={S.logName}>{displayName(log)}</span>
-              {log.first_go && <span style={{ fontSize:14, color:"#c07820" }}>⚡</span>}
+      <div style={{ display:"flex", alignItems:"center" }}>
+        <div style={{ ...S.logRow, flex:1 }} onClick={onTap}>
+          <div style={{ display:"flex", alignItems:"flex-start", gap:10, flex:1, minWidth:0 }}>
+            <span style={{ width:9, height:9, borderRadius:"50%", flexShrink:0, marginTop:5, display:"inline-block", background: isSent ? "#4caf50" : "transparent", border: isSent ? "none" : isRepeat ? "2px solid #4a9fd4" : "2px solid #e07820" }} />
+            <div style={{ minWidth:0 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <span style={S.logName}>{displayName(log)}</span>
+                {log.first_go && <span style={{ fontSize:14, color:"#c07820" }}>⚡</span>}
+              </div>
+              {log.note ? <div style={S.logMeta}>✎ {log.note.slice(0,42)}{log.note.length>42?"…":""}</div>
+                : hasTags ? <div style={S.logMeta}>{[...(log.angles||[]),...(log.styles||[])].join(" · ")}</div>
+                : showWindow ? <div style={S.addPromptActive}>+ add details</div>
+                : <div style={S.addPromptFaded}>+ add details</div>}
             </div>
-            {log.note ? <div style={S.logMeta}>✎ {log.note.slice(0,42)}{log.note.length>42?"…":""}</div>
-              : hasTags ? <div style={S.logMeta}>{[...(log.angles||[]),...(log.styles||[])].join(" · ")}</div>
-              : showWindow ? <div style={S.addPromptActive}>+ add details</div>
-              : <div style={S.addPromptFaded}>+ add details</div>}
           </div>
+          <span style={S.logGrade}>{log.grade}</span>
         </div>
-        <span style={S.logGrade}>{log.grade}</span>
+        <button onClick={e => { e.stopPropagation(); onDupe(log); }} style={{ background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:4, color:"#aaa", fontSize:18, fontWeight:300, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, marginLeft:8, fontFamily:"'DM Mono',monospace", lineHeight:1 }}>+</button>
       </div>
     </div>
   );
@@ -271,7 +274,7 @@ function BarChart({ data, color = "#f0ede8", unit = "" }) {
           <div key={i} onClick={() => setTapped(tapped===i ? null : i)}
             style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flex:1, cursor:"pointer", position:"relative" }}>
             {tapped === i && (
-              <div style={{ position:"absolute", top:-26, left:"50%", transform:"translateX(-50%)", background:"#f0ede8", color:"#0e0e0e", fontSize:10, fontWeight:700, borderRadius:3, padding:"2px 6px", whiteSpace:"nowrap", zIndex:10 }}>
+              <div style={{ position:"absolute", bottom:-28, left:"50%", transform:"translateX(-50%)", background:"#f0ede8", color:"#0e0e0e", fontSize:10, fontWeight:700, borderRadius:3, padding:"2px 6px", whiteSpace:"nowrap", zIndex:10 }}>
                 {d.value}{unit}
               </div>
             )}
@@ -435,6 +438,23 @@ export default function App({ user, onSignOut }) {
 
   const handleSent = () => { showTapHint(); commitLog("sent", false); };
   const handleFirstGo = () => { showTapHint(); setZapActive(true); setTimeout(() => setZapActive(false), 400); commitLog("sent", true); };
+
+  const dupeLog = async (log) => {
+    if (!activeSession) return;
+    showTapHint();
+    const climbData = { name: log.name||null, grade: log.grade, outcome: log.outcome, first_go: false, angles: log.angles||[], styles: log.styles||[], note: "", is_gym: isGym };
+    const tempId = `temp-${Date.now()}`;
+    const tempEntry = { id: tempId, ...climbData, logged_at: new Date().toISOString() };
+    setLogs(prev => [tempEntry, ...prev]);
+    setJustLoggedId(tempId);
+    setTimeout(() => setJustLoggedId(null), 1800);
+    const saved = await saveClimbToDb(activeSession.id, climbData);
+    if (saved) {
+      const withGym = { ...saved, is_gym: isGym };
+      setLogs(prev => prev.map(l => l.id===tempId ? withGym : l));
+      setAllClimbs(prev => [withGym, ...prev.filter(c => c.id !== tempId)]);
+    }
+  };
 
   const openSheet = (entry) => { clearTimeout(noteTimerRef.current); setNoteWindowId(null); setSheetEntry(entry); };
 
@@ -746,7 +766,7 @@ export default function App({ user, onSignOut }) {
           {/* Search input */}
           <input
             style={{ ...S.nameInputBoxed, marginBottom:16 }}
-            placeholder="search by location or climb name..."
+            placeholder={lookupMode === "sessions" ? "search by location..." : "search by climb name..."}
             value={lookupQuery}
             onChange={e => setLookupQuery(e.target.value)}
             autoCapitalize="off"
@@ -1105,7 +1125,7 @@ export default function App({ user, onSignOut }) {
               </div>
             )}
             {logs.slice(0,5).map(l => (
-              <LiveLogRow key={l.id} log={l} isNoteWindow={noteWindowId===l.id} onTap={() => openSheet(l)} isNew={l.id===justLoggedId} />
+              <LiveLogRow key={l.id} log={l} isNoteWindow={noteWindowId===l.id} onTap={() => openSheet(l)} onDupe={dupeLog} isNew={l.id===justLoggedId} />
             ))}
           </div>
         )}
