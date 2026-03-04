@@ -280,7 +280,7 @@ function BarChart({ data, color = "#f0ede8", unit = "" }) {
           </div>
         ))}
       </div>
-      <div style={{ fontSize:10, color:"#444", marginTop:6, letterSpacing:"0.06em" }}>tap a bar to see value</div>
+      <div style={{ fontSize:12, color:"#777", marginTop:6, letterSpacing:"0.06em" }}>tap a bar to see value</div>
     </div>
   );
 }
@@ -667,7 +667,7 @@ export default function App({ user, onSignOut }) {
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11, color:"#4caf50", letterSpacing:"0.15em", marginBottom:6 }}>● IN PROGRESS</div>
                   <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{activeSession.location}</div>
-                  <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>{new Date(activeSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
+                  <div style={{ fontSize:14, color:"#ccc", marginTop:3, fontWeight:600 }}>{new Date(activeSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
                   <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>{activeSession.discipline} · {logs.length} logged · {sends.length} sent{flashes.length>0?` · ${flashes.length} ⚡`:""}
                   </div>
                 </div>
@@ -683,7 +683,7 @@ export default function App({ user, onSignOut }) {
                 <div style={{ flex:1 }}>
                   <div style={{ fontSize:11, letterSpacing:"0.15em", marginBottom:6, color:"#888" }}>LAST SESSION</div>
                   <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{latestSession.location}</div>
-                  <div style={{ fontSize:12, color:"#bbb", marginTop:3, fontWeight:600 }}>{new Date(latestSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
+                  <div style={{ fontSize:14, color:"#ccc", marginTop:3, fontWeight:600 }}>{new Date(latestSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
                   <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>{latestSession.discipline} · {(latestSession.logs||[]).filter(l=>l.outcome==="sent").length} sent · {(latestSession.logs||[]).length} climbs</div>
                 </div>
                 <div style={{ fontSize:22, color:"#444", alignSelf:"center" }}>›</div>
@@ -829,11 +829,11 @@ export default function App({ user, onSignOut }) {
           <div style={S.overlay} onClick={() => setShowBestExplain(false)}>
             <div style={S.sheet} onClick={e => e.stopPropagation()}>
               <div style={S.sheetHandle} />
-              <div style={{ fontSize:14, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>how this is calculated</div>
+              <div style={{ fontSize:14, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14 }}>how this is calculated</div>
               <div style={{ fontSize:14, color:"#f0ede8", lineHeight:1.8, marginBottom:16 }}>
                 We look at all your sends and count which <span style={{ color:"#e07820" }}>angles</span> and <span style={{ color:"#e07820" }}>styles</span> appear most often.
               </div>
-              <div style={{ fontSize:13, color:"#888", lineHeight:1.7, marginBottom:20 }}>
+              <div style={{ fontSize:14, color:"#bbb", lineHeight:1.7, marginBottom:20 }}>
                 The top angle and top style from your {sent} sends are combined to give you your preferred climbing conditions. The more you tag, the more accurate this gets.
               </div>
               <button style={{ ...S.btnPrimary, width:"100%" }} onClick={() => setShowBestExplain(false)}>got it</button>
@@ -860,7 +860,7 @@ export default function App({ user, onSignOut }) {
             <div style={{ textAlign:"center", padding:"40px 0" }}>
               <div style={{ fontSize:42, marginBottom:12 }}>◈</div>
               <div style={{ fontSize:16, fontWeight:700, color:"#f0ede8", marginBottom:6 }}>no {insightsDiscipline} data yet</div>
-              <div style={{ fontSize:13, color:"#666", lineHeight:1.6 }}>log some {insightsDiscipline} sessions to see your insights</div>
+              <div style={{ fontSize:14, color:"#888", lineHeight:1.6 }}>log some {insightsDiscipline} sessions to see your insights</div>
             </div>
           ) : (
             <>
@@ -874,25 +874,25 @@ export default function App({ user, onSignOut }) {
                 ].map(({ num, label }) => (
                   <div key={label} style={S.statBox}>
                     <div style={{ fontSize:30, fontWeight:700, color:"#f0ede8" }}>{num}</div>
-                    <div style={{ fontSize:10, color:"#888", letterSpacing:"0.1em", textTransform:"uppercase", marginTop:2 }}>{label}</div>
+                    <div style={{ fontSize:12, color:"#bbb", letterSpacing:"0.1em", textTransform:"uppercase", marginTop:2 }}>{label}</div>
                   </div>
                 ))}
               </div>
 
               {/* Sends by grade */}
               <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
-                <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>sends by grade</div>
+                <div style={{ fontSize:12, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>sends by grade</div>
                 {hasGradeData ? (
                   <BarChart data={gradeCounts} color="#f0ede8" unit=" sends" />
                 ) : (
-                  <div style={{ fontSize:12, color:"#444", fontStyle:"italic" }}>log {Math.max(0, 3 - gradeCounts.length)} more sends across different grades to unlock</div>
+                  <div style={{ fontSize:13, color:"#666", fontStyle:"italic" }}>log {Math.max(0, 3 - gradeCounts.length)} more sends across different grades to unlock</div>
                 )}
               </div>
 
               {/* Outdoor vs gym */}
               {(outdoorCount > 0 || gymCount > 0) && (
                 <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
-                  <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>outdoor vs gym</div>
+                  <div style={{ fontSize:12, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>outdoor vs gym</div>
                   <div style={{ display:"flex", gap:10 }}>
                     <div style={{ flex: outdoorCount||1, background:"#1a3a1a", border:"1px solid #2a4a2a", borderRadius:6, padding:"10px 14px" }}>
                       <div style={{ fontSize:22, fontWeight:700, color:"#4caf50" }}>{outdoorCount}</div>
@@ -909,16 +909,16 @@ export default function App({ user, onSignOut }) {
               {/* Top spots — top 5 visible, rest scrollable */}
               {topLocs.length > 0 && (
                 <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
-                  <div style={{ fontSize:11, color:"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>top spots</div>
+                  <div style={{ fontSize:12, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>top spots</div>
                   <div style={{ maxHeight: topLocs.length > 5 ? 210 : "none", overflowY: topLocs.length > 5 ? "auto" : "visible" }}>
                     {topLocs.map((l, i) => (
                       <div key={l.label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom: i < topLocs.length-1 ? "1px solid #1a1a1a" : "none" }}>
-                        <div style={{ fontSize:13, color: i < 3 ? "#ddd" : "#888" }}>{i===0?"🥇 ":i===1?"🥈 ":i===2?"🥉 ":""}{l.label}</div>
-                        <div style={{ fontSize:12, color:"#888", fontWeight:600, flexShrink:0, marginLeft:8 }}>{l.value}</div>
+                        <div style={{ fontSize:13, color: i < 3 ? "#f0ede8" : "#bbb" }}>{i===0?"🥇 ":i===1?"🥈 ":i===2?"🥉 ":""}{l.label}</div>
+                        <div style={{ fontSize:13, color:"#bbb", fontWeight:600, flexShrink:0, marginLeft:8 }}>{l.value}</div>
                       </div>
                     ))}
                   </div>
-                  {topLocs.length > 5 && <div style={{ fontSize:10, color:"#444", marginTop:8, letterSpacing:"0.06em" }}>scroll to see all {topLocs.length} spots</div>}
+                  {topLocs.length > 5 && <div style={{ fontSize:12, color:"#777", marginTop:8, letterSpacing:"0.06em" }}>scroll to see all {topLocs.length} spots</div>}
                 </div>
               )}
 
@@ -933,10 +933,10 @@ export default function App({ user, onSignOut }) {
                       {bestConditions.angle && bestConditions.style && <span style={{ color:"#555" }}> · </span>}
                       {bestConditions.style && <span style={{ color:"#e07820" }}>{bestConditions.style}</span>}
                     </div>
-                    <div style={{ fontSize:11, color:"#555", marginTop:6 }}>based on {sent} sends · tap to learn more</div>
+                    <div style={{ fontSize:14, color:"#bbb", marginTop:6 }}>based on {sent} sends · tap to learn more</div>
                   </>
                 ) : (
-                  <div style={{ fontSize:12, color:"#444", fontStyle:"italic" }}>
+                  <div style={{ fontSize:13, color:"#666", fontStyle:"italic" }}>
                     log {Math.max(0, 10 - sent)} more sends to unlock
                     <div style={{ height:4, background:"#1e1e1e", borderRadius:2, marginTop:8 }}>
                       <div style={{ width:`${Math.min(100,(sent/10)*100)}%`, height:"100%", background:"#3a2a1a", borderRadius:2 }} />
@@ -1054,7 +1054,7 @@ export default function App({ user, onSignOut }) {
           <div style={{ flex:1, textAlign:"center", padding:"0 8px" }}>
             <div style={S.sessionLocation}>{activeSession?.location}</div>
             <div style={S.sessionMeta}>
-              <span style={{color:"#aaa"}}>{logs.length} logged</span>
+              <span style={{color:"#ccc"}}>{logs.length} logged</span>
               {sends.length > 0 && <span style={{color:"#4caf50"}}> · {sends.length} sent</span>}
               {repeats.length > 0 && <span style={{color:"#4a9fd4"}}> · {repeats.length} ↺</span>}
               {flashes.length > 0 && <span style={{color:"#c07820"}}> · {flashes.length} ⚡</span>}
@@ -1069,25 +1069,25 @@ export default function App({ user, onSignOut }) {
               ? <>move the slider to set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:"#e07820", fontWeight:700 }}>PROJECT</span>, or <span style={{ color:"#4a9fd4", fontWeight:700 }}>REPEAT</span> to log your first climb</>
               : <>add the climb name, set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:"#e07820", fontWeight:700 }}>PROJECT</span>, or <span style={{ color:"#4a9fd4", fontWeight:700 }}>REPEAT</span></>
             }
-            <div style={{ fontSize:10, color:"#4a7a4a", marginTop:6, letterSpacing:"0.06em" }}>tap to dismiss</div>
+            <div style={{ fontSize:12, color:"#5a9a5a", marginTop:6, letterSpacing:"0.06em" }}>tap to dismiss</div>
           </div>
         )}
 
         <div style={{ padding:"28px 24px 0" }}>
-          <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:10 }}>
+          <div style={{ fontSize:12, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:10 }}>
             {isOutdoor ? "climb name — required" : "climb name — optional"}
           </div>
           <input style={S.nameInputBoxed} placeholder={isOutdoor ? "e.g. Midnight Lightning" : "e.g. Techno Surfing"} value={climbName} onChange={e => setClimbName(e.target.value)} />
         </div>
 
         <div style={{ padding:"32px 0 0" }}>
-          <div style={{ fontSize:10, color:"#999", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:14, paddingLeft:24 }}>grade</div>
+          <div style={{ fontSize:12, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14, paddingLeft:24 }}>grade</div>
           <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} />
         </div>
 
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, padding:"28px 24px 0" }}>
           {logs.length > 0 && (
-            <div style={{ gridColumn:"1/-1", fontSize:10, color:"#555", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8, textAlign:"center" }}>
+            <div style={{ gridColumn:"1/-1", fontSize:14, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8, textAlign:"center" }}>
               climb {logs.length + 1} — pick grade to log
             </div>
           )}
@@ -1135,7 +1135,7 @@ export default function App({ user, onSignOut }) {
           <div style={{ textAlign:"center", marginBottom:36 }}>
             <div style={{ fontSize:52, marginBottom:12 }}>✓</div>
             <div style={{ fontSize:28, fontWeight:700, letterSpacing:"0.04em", marginBottom:6 }}>{vs.location}</div>
-            <div style={{ fontSize:13, color:"#888" }}>{new Date(vs.started_at).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
+            <div style={{ fontSize:14, color:"#bbb" }}>{new Date(vs.started_at).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
           </div>
           <div style={S.statsRow}>
             <div style={S.statBox}><div style={S.statNum}>{vs.logs.length}</div><div style={S.statLabel}>climbs</div></div>
@@ -1176,34 +1176,34 @@ const S = {
   app:{ fontFamily:"'DM Mono','Courier New',monospace", background:"#0e0e0e", minHeight:"100vh", color:"#f0ede8", maxWidth:390, margin:"0 auto", position:"relative", overflowX:"hidden" },
   homeTop:{ marginBottom:28 },
   logo:{ fontSize:36, fontWeight:700, letterSpacing:"0.15em" },
-  tagline:{ fontSize:14, color:"#aaa", letterSpacing:"0.08em", marginTop:4 },
+  tagline:{ fontSize:15, color:"#bbb", letterSpacing:"0.08em", marginTop:4 },
   activeCard:{ background:"#0d1f0d", border:"1px solid #1e3a1e", borderRadius:8, padding:"18px 20px", marginBottom:16, cursor:"pointer" },
   latestCard:{ background:"#161616", border:"1px solid #2a2a2a", borderRadius:8, padding:"18px 20px", marginBottom:16, cursor:"pointer" },
   endBtnSmall:{ background:"none", border:"1px solid #2a4a2a", color:"#4caf50", padding:"7px 14px", borderRadius:4, fontSize:12, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0 },
-  sectionLabel:{ fontSize:11, color:"#aaa", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:4, paddingTop:4 },
+  sectionLabel:{ fontSize:12, color:"#ccc", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:4, paddingTop:4 },
   sessionCard:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 0", borderBottom:"1px solid #1e1e1e", cursor:"pointer" },
   sessionCardLocation:{ fontSize:16, fontWeight:600, color:"#f0ede8" },
-  sessionCardMeta:{ fontSize:13, color:"#bbb", marginTop:3 },
-  sessionCardDate:{ fontSize:13, color:"#ccc", fontWeight:600 },
+  sessionCardMeta:{ fontSize:14, color:"#ccc", marginTop:3 },
+  sessionCardDate:{ fontSize:14, color:"#e0ddd8", fontWeight:600 },
   trashBtn:{ background:"none", border:"none", color:"#666", fontSize:12, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace" },
   lookupMoreBtn:{ width:"100%", padding:"14px 0", background:"transparent", border:"1px solid #333", borderRadius:6, color:"#aaa", fontSize:13, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginTop:12, textAlign:"center" },
   floatingBtn:{ position:"fixed", bottom:72, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"0 24px 12px", background:"linear-gradient(transparent, #0e0e0e 35%)", boxSizing:"border-box", zIndex:40 },
   startBtn:{ width:"100%", padding:20, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"block" },
-  signOutBtn:{ width:"100%", padding:8, background:"transparent", color:"#666", border:"none", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:6 },
+  signOutBtn:{ width:"100%", padding:8, background:"transparent", color:"#888", border:"none", fontSize:13, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:6 },
   backBtn:{ background:"none", border:"none", color:"#aaa", fontSize:22, cursor:"pointer", padding:0, fontFamily:"'DM Mono',monospace", alignSelf:"flex-start" },
   pageTitle:{ fontSize:26, fontWeight:700, letterSpacing:"0.04em", marginBottom:4 },
-  pageSubtitle:{ fontSize:14, color:"#aaa", letterSpacing:"0.05em", marginBottom:28 },
+  pageSubtitle:{ fontSize:15, color:"#bbb", letterSpacing:"0.05em", marginBottom:28 },
   statsRow:{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:2, marginBottom:20 },
   statBox:{ background:"#141414", padding:"16px 12px", textAlign:"center", borderRadius:4 },
-  statNum:{ fontSize:28, fontWeight:700 }, statLabel:{ fontSize:11, color:"#aaa", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
+  statNum:{ fontSize:28, fontWeight:700 }, statLabel:{ fontSize:12, color:"#bbb", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
   detailRow:{ borderBottom:"1px solid #1a1a1a", paddingBottom:10, marginBottom:2, cursor:"pointer" },
   detailTop:{ display:"flex", alignItems:"center", gap:12, paddingTop:10 },
   detailName:{ flex:1, color:"#f0ede8", fontSize:15 }, detailGrade:{ fontSize:13, color:"#bbb", fontWeight:600 },
   tagPills:{ display:"flex", flexWrap:"wrap", gap:6, marginLeft:30, marginTop:6 },
-  pill:{ fontSize:10, color:"#888", background:"#1e1e1e", padding:"3px 8px", borderRadius:10 },
+  pill:{ fontSize:12, color:"#bbb", background:"#1e1e1e", padding:"3px 8px", borderRadius:10 },
   noteChip:{ marginLeft:30, marginTop:5, fontSize:13, color:"#bbb", lineHeight:1.5 },
   addChipDetail:{ marginLeft:30, marginTop:5, fontSize:12, color:"#5aaa5a", letterSpacing:"0.06em", fontWeight:600 },
-  addClimbBtn:{ width:"100%", padding:"13px 0", background:"#161616", border:"1px solid #2a2a2a", borderRadius:6, color:"#f0ede8", fontSize:12, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:24, textAlign:"center" },
+  addClimbBtn:{ width:"100%", padding:"13px 0", background:"#161616", border:"1px solid #2a2a2a", borderRadius:6, color:"#f0ede8", fontSize:14, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:24, textAlign:"center" },
   setupQ:{ fontSize:26, fontWeight:600, marginBottom:36, lineHeight:1.3, marginTop:28 },
   setupGrid:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 },
   setupBtn:{ background:"#141414", border:"1px solid #222", borderRadius:8, padding:"28px 16px", color:"#f0ede8", fontSize:14, fontWeight:600, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.05em", display:"flex", flexDirection:"column", alignItems:"center", gap:14 },
@@ -1211,29 +1211,29 @@ const S = {
   locationInput:{ width:"100%", background:"#141414", border:"1px solid #2a2a2a", borderRadius:6, padding:16, color:"#f0ede8", fontSize:16, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box" },
   suggestions:{ position:"absolute", top:"100%", left:0, right:0, background:"#161616", border:"1px solid #222", borderTop:"none", borderRadius:"0 0 6px 6px", zIndex:10 },
   suggestionItem:{ padding:"12px 16px", fontSize:14, color:"#bbb", cursor:"pointer", borderBottom:"1px solid #1e1e1e" },
-  flash:{ position:"fixed", top:0, left:"50%", transform:"translateX(-50%)", padding:"11px 24px", borderRadius:"0 0 8px 8px", fontSize:13, fontWeight:600, letterSpacing:"0.06em", zIndex:100, fontFamily:"'DM Mono',monospace", maxWidth:390, width:"100%", textAlign:"center" },
+  flash:{ position:"fixed", top:0, left:"50%", transform:"translateX(-50%)", padding:"11px 24px", borderRadius:"0 0 8px 8px", fontSize:15, fontWeight:600, letterSpacing:"0.06em", zIndex:100, fontFamily:"'DM Mono',monospace", maxWidth:390, width:"100%", textAlign:"center" },
   topBar:{ display:"flex", alignItems:"center", padding:"16px 16px 14px", borderBottom:"1px solid #1a1a1a" },
   topBarIconBtn:{ background:"#1a1a1a", border:"1px solid #2a2a2a", color:"#e0ddd8", width:38, height:38, borderRadius:6, fontSize:16, cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
   sessionLocation:{ fontSize:16, fontWeight:700, color:"#f0ede8" },
   sessionMeta:{ fontSize:13, marginTop:2 },
   nameInputBoxed:{ width:"100%", background:"#141414", border:"1px solid #2e2e2e", borderRadius:6, padding:"14px 16px", color:"#f0ede8", fontSize:18, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", caretColor:"#f0ede8" },
-  outcomeBtn:{ padding:"20px 8px", border:"none", borderRadius:6, fontSize:12, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
+  outcomeBtn:{ padding:"20px 8px", border:"none", borderRadius:6, fontSize:14, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
   logRowWrap:{ borderBottom:"1px solid #131313", borderRadius:4 },
   logRow:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"10px 0 6px", cursor:"pointer" },
   logName:{ fontSize:15, color:"#e0ddd8" },
   logMeta:{ fontSize:13, color:"#aaa", marginTop:2 },
   addPromptActive:{ fontSize:13, color:"#5aaa5a", marginTop:3, letterSpacing:"0.04em", fontWeight:600 },
-  addPromptFaded:{ fontSize:13, color:"#666", marginTop:3, letterSpacing:"0.04em" },
+  addPromptFaded:{ fontSize:13, color:"#888", marginTop:3, letterSpacing:"0.04em" },
   logGrade:{ fontSize:14, color:"#ccc", fontWeight:600, flexShrink:0, marginLeft:8 },
   endSessionBar:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"12px 24px 32px", background:"linear-gradient(transparent, #0e0e0e 30%)", boxSizing:"border-box" },
-  endSessionBtn:{ width:"100%", padding:18, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:6, fontSize:13, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
+  endSessionBtn:{ width:"100%", padding:18, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:6, fontSize:15, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
   overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"flex-end", zIndex:200 },
   sheet:{ background:"#131313", borderTop:"1px solid #222", borderRadius:"16px 16px 0 0", padding:"20px 24px 48px", width:"100%", maxWidth:390, margin:"0 auto", boxSizing:"border-box", maxHeight:"88vh", overflowY:"auto" },
   sheetHandle:{ width:36, height:3, background:"#2a2a2a", borderRadius:2, margin:"0 auto 20px" },
   sheetTitle:{ fontSize:18, fontWeight:700 },
   sheetNameInput:{ width:"100%", background:"transparent", border:"none", borderBottom:"1px solid #3a3a3a", color:"#f0ede8", fontSize:18, fontWeight:700, fontFamily:"'DM Mono',monospace", outline:"none", padding:"0 0 4px", caretColor:"#f0ede8", boxSizing:"border-box" },
   gradeEditBtn:{ fontSize:13, color:"#bbb", fontWeight:600, background:"#1a1a1a", border:"1px solid #333", borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0, whiteSpace:"nowrap" },
-  tagSection:{ marginTop:20 }, tagLabel:{ fontSize:11, color:"#aaa", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 },
+  tagSection:{ marginTop:20 }, tagLabel:{ fontSize:12, color:"#ccc", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 },
   chipRow:{ display:"flex", flexWrap:"wrap", gap:8 },
   noteInput:{ width:"100%", background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:4, padding:"12px 14px", color:"#f0ede8", fontSize:15, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7, marginTop:4 },
   sheetBtns:{ display:"flex", gap:10, marginTop:20 },
