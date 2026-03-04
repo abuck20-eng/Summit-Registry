@@ -70,7 +70,7 @@ function SentButton({ disabled, onSent, onFirstGo }) {
   const handlePress = () => {
     if (disabled) return;
     if (armed) { clearTimeout(tapTimer.current); setArmed(false); onFirstGo(); }
-    else { setArmed(true); tapTimer.current = setTimeout(() => { setArmed(false); onSent(); }, 1500); }
+    else { setArmed(true); tapTimer.current = setTimeout(() => { setArmed(false); onSent(); }, 750); }
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
@@ -209,23 +209,13 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
 
 // ── Live log row (logging screen) ─────────────────────────────────────────────
 function LiveLogRow({ log, isNoteWindow, onTap, isNew }) {
-  const [progress, setProgress] = useState(100);
-  const rafRef = useRef(null);
-  const startRef = useRef(null);
-  useEffect(() => {
-    if (!isNoteWindow) { cancelAnimationFrame(rafRef.current); setProgress(0); return; }
-    startRef.current = performance.now();
-    const tick = (now) => { const pct = Math.max(0, 100 - ((now - startRef.current) / NOTE_WINDOW_MS) * 100); setProgress(pct); if (pct > 0) rafRef.current = requestAnimationFrame(tick); else setProgress(0); };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [isNoteWindow]);
   const hasTags = log.angles?.length > 0 || log.styles?.length > 0;
   const hasAnything = hasTags || log.note || log.first_go;
   const showWindow = isNoteWindow && !hasAnything;
   const isSent = log.outcome === "sent";
   const isRepeat = log.outcome === "repeat";
   return (
-    <div style={{ ...S.logRowWrap, animation: isNew ? "pulseRow 0.5s ease-out" : "none" }}>
+    <div style={{ ...S.logRowWrap, animation: isNew ? "pulseRow 0.5s ease-out" : "none", borderLeft: showWindow ? "2px solid #4caf50" : "2px solid transparent", paddingLeft: 8, transition:"border-color 0.3s" }}>
       <style>{`@keyframes pulseRow { 0%{background:#1a2a1a} 100%{background:transparent} }`}</style>
       <div style={S.logRow} onClick={onTap}>
         <div style={{ display:"flex", alignItems:"flex-start", gap:10, flex:1, minWidth:0 }}>
@@ -233,7 +223,7 @@ function LiveLogRow({ log, isNoteWindow, onTap, isNew }) {
           <div style={{ minWidth:0 }}>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
               <span style={S.logName}>{displayName(log)}</span>
-              {log.first_go && <span style={{ fontSize:12, color:"#c07820" }}>⚡</span>}
+              {log.first_go && <span style={{ fontSize:14, color:"#c07820" }}>⚡</span>}
             </div>
             {log.note ? <div style={S.logMeta}>✎ {log.note.slice(0,42)}{log.note.length>42?"…":""}</div>
               : hasTags ? <div style={S.logMeta}>{[...(log.angles||[]),...(log.styles||[])].join(" · ")}</div>
@@ -243,11 +233,6 @@ function LiveLogRow({ log, isNoteWindow, onTap, isNew }) {
         </div>
         <span style={S.logGrade}>{log.grade}</span>
       </div>
-      {showWindow && (
-        <div style={{ height:3, background:"#1a1a1a", borderRadius:2, margin:"0 0 2px" }}>
-          <div style={{ width:`${progress}%`, height:"100%", background:"#4caf50", borderRadius:2, transition:"width 0.08s linear", opacity:0.7 }} />
-        </div>
-      )}
     </div>
   );
 }
@@ -1176,33 +1161,33 @@ const S = {
   app:{ fontFamily:"'DM Mono','Courier New',monospace", background:"#0e0e0e", minHeight:"100vh", color:"#f0ede8", maxWidth:390, margin:"0 auto", position:"relative", overflowX:"hidden" },
   homeTop:{ marginBottom:28 },
   logo:{ fontSize:36, fontWeight:700, letterSpacing:"0.15em" },
-  tagline:{ fontSize:12, color:"#888", letterSpacing:"0.08em", marginTop:4 },
+  tagline:{ fontSize:14, color:"#aaa", letterSpacing:"0.08em", marginTop:4 },
   activeCard:{ background:"#0d1f0d", border:"1px solid #1e3a1e", borderRadius:8, padding:"18px 20px", marginBottom:16, cursor:"pointer" },
   latestCard:{ background:"#161616", border:"1px solid #2a2a2a", borderRadius:8, padding:"18px 20px", marginBottom:16, cursor:"pointer" },
-  endBtnSmall:{ background:"none", border:"1px solid #2a4a2a", color:"#4caf50", padding:"7px 14px", borderRadius:4, fontSize:11, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0 },
-  sectionLabel:{ fontSize:10, color:"#888", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:4, paddingTop:4 },
-  sessionCard:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 0", borderBottom:"1px solid #161616", cursor:"pointer" },
-  sessionCardLocation:{ fontSize:16, fontWeight:600, color:"#e0ddd8" },
-  sessionCardMeta:{ fontSize:12, color:"#999", marginTop:3 },
-  sessionCardDate:{ fontSize:12, color:"#bbb", fontWeight:600 },
+  endBtnSmall:{ background:"none", border:"1px solid #2a4a2a", color:"#4caf50", padding:"7px 14px", borderRadius:4, fontSize:12, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0 },
+  sectionLabel:{ fontSize:11, color:"#aaa", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:4, paddingTop:4 },
+  sessionCard:{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"14px 0", borderBottom:"1px solid #1e1e1e", cursor:"pointer" },
+  sessionCardLocation:{ fontSize:16, fontWeight:600, color:"#f0ede8" },
+  sessionCardMeta:{ fontSize:13, color:"#bbb", marginTop:3 },
+  sessionCardDate:{ fontSize:13, color:"#ccc", fontWeight:600 },
   trashBtn:{ background:"none", border:"none", color:"#666", fontSize:12, cursor:"pointer", padding:"4px 6px", fontFamily:"'DM Mono',monospace" },
-  lookupMoreBtn:{ width:"100%", padding:"14px 0", background:"transparent", border:"1px solid #222", borderRadius:6, color:"#888", fontSize:12, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginTop:12, textAlign:"center" },
+  lookupMoreBtn:{ width:"100%", padding:"14px 0", background:"transparent", border:"1px solid #333", borderRadius:6, color:"#aaa", fontSize:13, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginTop:12, textAlign:"center" },
   floatingBtn:{ position:"fixed", bottom:72, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"0 24px 12px", background:"linear-gradient(transparent, #0e0e0e 35%)", boxSizing:"border-box", zIndex:40 },
   startBtn:{ width:"100%", padding:20, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"block" },
-  signOutBtn:{ width:"100%", padding:8, background:"transparent", color:"#555", border:"none", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:6 },
+  signOutBtn:{ width:"100%", padding:8, background:"transparent", color:"#666", border:"none", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:6 },
   backBtn:{ background:"none", border:"none", color:"#aaa", fontSize:22, cursor:"pointer", padding:0, fontFamily:"'DM Mono',monospace", alignSelf:"flex-start" },
   pageTitle:{ fontSize:26, fontWeight:700, letterSpacing:"0.04em", marginBottom:4 },
-  pageSubtitle:{ fontSize:12, color:"#888", letterSpacing:"0.05em", marginBottom:28 },
+  pageSubtitle:{ fontSize:14, color:"#aaa", letterSpacing:"0.05em", marginBottom:28 },
   statsRow:{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:2, marginBottom:20 },
   statBox:{ background:"#141414", padding:"16px 12px", textAlign:"center", borderRadius:4 },
-  statNum:{ fontSize:28, fontWeight:700 }, statLabel:{ fontSize:10, color:"#888", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
+  statNum:{ fontSize:28, fontWeight:700 }, statLabel:{ fontSize:11, color:"#aaa", letterSpacing:"0.08em", marginTop:3, textTransform:"uppercase" },
   detailRow:{ borderBottom:"1px solid #1a1a1a", paddingBottom:10, marginBottom:2, cursor:"pointer" },
   detailTop:{ display:"flex", alignItems:"center", gap:12, paddingTop:10 },
-  detailName:{ flex:1, color:"#ddd", fontSize:14 }, detailGrade:{ fontSize:12, color:"#999", fontWeight:600 },
+  detailName:{ flex:1, color:"#f0ede8", fontSize:15 }, detailGrade:{ fontSize:13, color:"#bbb", fontWeight:600 },
   tagPills:{ display:"flex", flexWrap:"wrap", gap:6, marginLeft:30, marginTop:6 },
   pill:{ fontSize:10, color:"#888", background:"#1e1e1e", padding:"3px 8px", borderRadius:10 },
-  noteChip:{ marginLeft:30, marginTop:5, fontSize:12, color:"#888", lineHeight:1.5 },
-  addChipDetail:{ marginLeft:30, marginTop:5, fontSize:11, color:"#5aaa5a", letterSpacing:"0.06em", fontWeight:600 },
+  noteChip:{ marginLeft:30, marginTop:5, fontSize:13, color:"#bbb", lineHeight:1.5 },
+  addChipDetail:{ marginLeft:30, marginTop:5, fontSize:12, color:"#5aaa5a", letterSpacing:"0.06em", fontWeight:600 },
   addClimbBtn:{ width:"100%", padding:"13px 0", background:"#161616", border:"1px solid #2a2a2a", borderRadius:6, color:"#f0ede8", fontSize:12, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:24, textAlign:"center" },
   setupQ:{ fontSize:26, fontWeight:600, marginBottom:36, lineHeight:1.3, marginTop:28 },
   setupGrid:{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 },
@@ -1215,16 +1200,16 @@ const S = {
   topBar:{ display:"flex", alignItems:"center", padding:"16px 16px 14px", borderBottom:"1px solid #1a1a1a" },
   topBarIconBtn:{ background:"#1a1a1a", border:"1px solid #2a2a2a", color:"#e0ddd8", width:38, height:38, borderRadius:6, fontSize:16, cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 },
   sessionLocation:{ fontSize:16, fontWeight:700, color:"#f0ede8" },
-  sessionMeta:{ fontSize:12, marginTop:2 },
+  sessionMeta:{ fontSize:13, marginTop:2 },
   nameInputBoxed:{ width:"100%", background:"#141414", border:"1px solid #2e2e2e", borderRadius:6, padding:"14px 16px", color:"#f0ede8", fontSize:18, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", caretColor:"#f0ede8" },
   outcomeBtn:{ padding:"20px 8px", border:"none", borderRadius:6, fontSize:12, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
   logRowWrap:{ borderBottom:"1px solid #131313", borderRadius:4 },
   logRow:{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"10px 0 6px", cursor:"pointer" },
-  logName:{ fontSize:13, color:"#ccc" },
-  logMeta:{ fontSize:11, color:"#888", marginTop:2 },
-  addPromptActive:{ fontSize:12, color:"#5aaa5a", marginTop:3, letterSpacing:"0.04em", fontWeight:600 },
-  addPromptFaded:{ fontSize:12, color:"#4a7a4a", marginTop:3, letterSpacing:"0.04em" },
-  logGrade:{ fontSize:13, color:"#aaa", fontWeight:600, flexShrink:0, marginLeft:8 },
+  logName:{ fontSize:15, color:"#e0ddd8" },
+  logMeta:{ fontSize:13, color:"#aaa", marginTop:2 },
+  addPromptActive:{ fontSize:13, color:"#5aaa5a", marginTop:3, letterSpacing:"0.04em", fontWeight:600 },
+  addPromptFaded:{ fontSize:13, color:"#666", marginTop:3, letterSpacing:"0.04em" },
+  logGrade:{ fontSize:14, color:"#ccc", fontWeight:600, flexShrink:0, marginLeft:8 },
   endSessionBar:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"12px 24px 32px", background:"linear-gradient(transparent, #0e0e0e 30%)", boxSizing:"border-box" },
   endSessionBtn:{ width:"100%", padding:18, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:6, fontSize:13, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
   overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"flex-end", zIndex:200 },
@@ -1233,10 +1218,10 @@ const S = {
   sheetTitle:{ fontSize:18, fontWeight:700 },
   sheetNameInput:{ width:"100%", background:"transparent", border:"none", borderBottom:"1px solid #3a3a3a", color:"#f0ede8", fontSize:18, fontWeight:700, fontFamily:"'DM Mono',monospace", outline:"none", padding:"0 0 4px", caretColor:"#f0ede8", boxSizing:"border-box" },
   gradeEditBtn:{ fontSize:13, color:"#bbb", fontWeight:600, background:"#1a1a1a", border:"1px solid #333", borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:"'DM Mono',monospace", flexShrink:0, whiteSpace:"nowrap" },
-  tagSection:{ marginTop:20 }, tagLabel:{ fontSize:10, color:"#888", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 },
+  tagSection:{ marginTop:20 }, tagLabel:{ fontSize:11, color:"#aaa", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:10 },
   chipRow:{ display:"flex", flexWrap:"wrap", gap:8 },
-  noteInput:{ width:"100%", background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:4, padding:"12px 14px", color:"#f0ede8", fontSize:13, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7, marginTop:4 },
+  noteInput:{ width:"100%", background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:4, padding:"12px 14px", color:"#f0ede8", fontSize:15, fontFamily:"'DM Mono',monospace", outline:"none", resize:"none", boxSizing:"border-box", lineHeight:1.7, marginTop:4 },
   sheetBtns:{ display:"flex", gap:10, marginTop:20 },
-  btnSecondary:{ flex:1, padding:14, background:"transparent", border:"1px solid #333", borderRadius:4, color:"#888", fontSize:12, fontWeight:600, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
-  btnPrimary:{ flex:2, padding:14, background:"#f0ede8", border:"none", borderRadius:4, color:"#0e0e0e", fontSize:12, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
+  btnSecondary:{ flex:1, padding:14, background:"transparent", border:"1px solid #333", borderRadius:4, color:"#bbb", fontSize:13, fontWeight:600, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
+  btnPrimary:{ flex:2, padding:14, background:"#f0ede8", border:"none", borderRadius:4, color:"#0e0e0e", fontSize:13, fontWeight:700, letterSpacing:"0.1em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
 };
