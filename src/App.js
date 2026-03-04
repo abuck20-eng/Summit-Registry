@@ -430,7 +430,7 @@ export default function App({ user, onSignOut }) {
     setSessionOnboardHint(false);
     setFirstClimbHint(true);
     clearTimeout(hintTimerRef.current);
-    hintTimerRef.current = setTimeout(() => setFirstClimbHint(false), 10000);
+    hintTimerRef.current = setTimeout(() => setFirstClimbHint(false), 20000);
   };
 
   const handleSent = () => { showTapHint(); commitLog("sent", false); };
@@ -632,6 +632,21 @@ export default function App({ user, onSignOut }) {
       </div>
     </div>
   );
+
+  // ── LOADING ──────────────────────────────────────────────────────────────────
+  if (loadingSessions) {
+    return (
+      <div style={{ fontFamily:"'DM Mono','Courier New',monospace", background:"#0e0e0e", minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", maxWidth:390, margin:"0 auto" }}>
+        <div style={{ fontSize:28, fontWeight:700, letterSpacing:"0.15em", color:"#f0ede8", marginBottom:24 }}>SUMMIT</div>
+        <div style={{ display:"flex", gap:6 }}>
+          {[0,1,2].map(i => (
+            <div key={i} style={{ width:6, height:6, borderRadius:"50%", background:"#4caf50", animation:`dotPulse 1.2s ease-in-out ${i*0.2}s infinite` }} />
+          ))}
+        </div>
+        <style>{`@keyframes dotPulse { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }`}</style>
+      </div>
+    );
+  }
 
   // ── HOME tab ─────────────────────────────────────────────────────────────────
   if (screen === "home") {
