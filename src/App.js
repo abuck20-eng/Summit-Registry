@@ -563,6 +563,7 @@ export default function App({ user, onSignOut }) {
 
   // ── Insights data ───────────────────────────────────────────────────────────
   const [insightsDiscipline, setInsightsDiscipline] = useState("boulder");
+  const [showBestExplain, setShowBestExplain] = useState(false);
 
   const insightsData = useMemo(() => {
     const compute = (disc) => {
@@ -821,7 +822,6 @@ export default function App({ user, onSignOut }) {
     const hasData = total >= 1;
     const hasGradeData = gradeCounts.length >= 3;
     const hasBestConditions = !!bestConditions;
-    const [showBestExplain, setShowBestExplain] = useState(false);
 
     return (
       <div style={S.app}>
