@@ -454,7 +454,8 @@ export default function App({ user, onSignOut }) {
   const [lookupQuery, setLookupQuery] = useState("");
   const [lookupMode, setLookupMode] = useState("sessions"); // "sessions" | "climbs"
   const [showAllSessions, setShowAllSessions] = useState(false);
-  const [dupeSendPrompt, setDupeSendPrompt] = useState(null); // { climbData, tempId, savedClimb }
+  const [dupeSendPrompt, setDupeSendPrompt] = useState(null);
+  const [confirmEndEmpty, setConfirmEndEmpty] = useState(false);
 
   const grades = discipline === "route" ? ROUTE_GRADES : BOULDER_GRADES;
   const isOutdoor = environment === "outdoor";
@@ -645,21 +646,33 @@ export default function App({ user, onSignOut }) {
 
   const endSession = async () => {
     if (!activeSession) return;
-    const currentLogs = logs.filter(l => !String(l.id).startsWith('temp-'));
-    if (currentLogs.length === 0 && logs.length === 0) {
-      const confirmed = window.confirm("No climbs logged — end session anyway? It won't be saved.");
-      if (!confirmed) return;
-      await supabase.from('sessions').delete().eq('id', activeSession.id);
-      setActiveSession(null); setLogs([]);
-      setAllSessions(prev => prev.filter(s => s.id !== activeSession.id));
-      setScreen("home"); setTab("home"); return;
+    // Use allClimbs as source of truth — logs state may be stale if user navigated away
+    const sessionClimbs = allClimbs.filter(c => String(c.session_id) === String(activeSession.id));
+    const climbCount = sessionClimbs.length > 0 ? sessionClimbs.length : logs.length;
+    if (climbCount === 0) {
+      // No native confirm on iOS PWA — use custom modal instead
+      setConfirmEndEmpty(true);
+      return;
     }
+    await _doEndSession(sessionClimbs.length > 0 ? sessionClimbs : logs);
+  };
+
+  const _doEndSession = async (finalLogs) => {
+    if (!activeSession) return;
     clearTimeout(noteTimerRef.current); setNoteWindowId(null);
     await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
-    const finalLogs = logs.length > 0 ? logs : allClimbs.filter(c => String(c.session_id) === String(activeSession.id));
     const done = { ...activeSession, logs: finalLogs, ended_at: new Date().toISOString() };
     setAllSessions(prev => prev.map(s => s.id === activeSession.id ? done : s));
-    setActiveSession(null); setViewingSession(done); setScreen("summary");
+    setActiveSession(null); setLogs([]); setViewingSession(done); setScreen("summary");
+  };
+
+  const endEmptySession = async () => {
+    if (!activeSession) return;
+    setConfirmEndEmpty(false);
+    await supabase.from('sessions').delete().eq('id', activeSession.id);
+    setAllSessions(prev => prev.filter(s => s.id !== activeSession.id));
+    setActiveSession(null); setLogs([]);
+    setScreen("home"); setTab("home");
   };
 
   const addClimbsTo = async (session) => {
@@ -859,6 +872,22 @@ export default function App({ user, onSignOut }) {
     </div>
   );
 
+  const ConfirmEndEmpty = () => !confirmEndEmpty ? null : (
+    <div style={S.overlay} onClick={() => setConfirmEndEmpty(false)}>
+      <div style={S.sheet} onClick={e => e.stopPropagation()}>
+        <div style={S.sheetHandle} />
+        <div style={{ textAlign:"center", padding:"12px 0 8px" }}>
+          <div style={{ fontSize:18, fontWeight:700, marginBottom:8 }}>end empty session?</div>
+          <div style={{ fontSize:13, color:"#999", marginBottom:24 }}>no climbs logged — this session won't be saved</div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <button style={S.btnSecondary} onClick={() => setConfirmEndEmpty(false)}>keep going</button>
+            <button style={{ ...S.btnPrimary, background:"#c0392b" }} onClick={endEmptySession}>end anyway</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // ── LOADING ──────────────────────────────────────────────────────────────────
   if (loadingSessions) return <SummitLoader />;
 
@@ -870,7 +899,7 @@ export default function App({ user, onSignOut }) {
 
     return (
       <div style={S.app}>
-        <Sheet /><DeleteSessionModal />
+        <Sheet /><DeleteSessionModal /><ConfirmEndEmpty />
         <div style={{ padding:"52px 24px 200px" }}>
           <div style={S.homeTop}><div style={S.logo}>SUMMIT</div><div style={S.tagline}>your climbing registry</div></div>
 
@@ -953,7 +982,7 @@ export default function App({ user, onSignOut }) {
   if (screen === "lookup") {
     return (
       <div style={S.app}>
-        <Sheet /><DeleteSessionModal />
+        <Sheet /><DeleteSessionModal /><ConfirmEndEmpty />
         <div style={{ padding:"52px 24px 160px" }}>
           <div style={S.homeTop}><div style={S.logo}>LOOK UP</div><div style={S.tagline}>find sessions & climbs</div></div>
 
@@ -1275,7 +1304,7 @@ export default function App({ user, onSignOut }) {
     const backDest = tab === "lookup" ? "lookup" : "home";
 
     return (
-      <div style={S.app}><Sheet /><DeleteSessionModal />
+      <div style={S.app}><Sheet /><DeleteSessionModal /><ConfirmEndEmpty />
         <div style={{ padding:"52px 24px 80px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:40 }}>
             <button style={S.backBtn} onClick={() => { setViewingSession(null); setScreen(backDest); }}>←</button>
@@ -1329,7 +1358,7 @@ export default function App({ user, onSignOut }) {
 
     return (
       <div style={S.app}>
-        <ZapOverlay active={zapActive} /><Sheet /><DupeSendPrompt />
+        <ZapOverlay active={zapActive} /><Sheet /><DupeSendPrompt /><ConfirmEndEmpty />
         {justLogged && (
           <div style={{...S.flash, background: justLogged.first_go?"#1a1a00":justLogged.outcome==="sent"?"#0d1f0d":justLogged.outcome==="repeat"?"#061828":"#0a1e1c", color: justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT, border:`1px solid ${justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT}22`}}>
             {justLogged.first_go?"⚡ flash!":justLogged.outcome==="sent"?"✓ send":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
