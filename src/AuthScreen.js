@@ -10,11 +10,9 @@ export default function AuthScreen() {
 
   const handleLogin = async () => {
     if (!email.trim()) return;
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: { emailRedirectTo: window.location.origin }
+      email: email.trim(), options: { emailRedirectTo: window.location.origin }
     });
     if (error) { setError(error.message); setLoading(false); }
     else { setSent(true); setLoading(false); }
@@ -23,8 +21,7 @@ export default function AuthScreen() {
   const handleGoogle = async () => {
     setGoogleLoading(true); setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin }
+      provider: 'google', options: { redirectTo: window.location.origin }
     });
     if (error) { setError(error.message); setGoogleLoading(false); }
   };
@@ -39,12 +36,13 @@ export default function AuthScreen() {
           <div style={S.sentBox}>
             <div style={S.sentIcon}>✉</div>
             <div style={S.sentTitle}>check your email</div>
-            <div style={S.sentSub}>we sent a link to {email}</div>
+            <div style={S.sentSub}>we sent a magic link to {email}</div>
             <div style={S.sentSub2}>tap it to sign in — no password needed</div>
             <button style={S.resendBtn} onClick={() => setSent(false)}>use a different email</button>
           </div>
         ) : (
           <>
+            <div style={S.sectionLabel}>sign in with Google</div>
             <button style={{ ...S.googleBtn, opacity: googleLoading ? 0.6 : 1 }} onClick={handleGoogle} disabled={googleLoading}>
               <svg width="18" height="18" viewBox="0 0 48 48" style={{ flexShrink:0 }}>
                 <path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
@@ -55,16 +53,17 @@ export default function AuthScreen() {
               {googleLoading ? 'signing in...' : 'continue with Google'}
             </button>
 
-            <div style={S.divider}><div style={S.dividerLine}/><span style={{ color:"#333", fontSize:11, letterSpacing:"0.1em", flexShrink:0 }}>or</span><div style={S.dividerLine}/></div>
+            <div style={S.divider}><div style={S.dividerLine}/><span style={{ color:"#888", fontSize:12, letterSpacing:"0.1em", flexShrink:0 }}>or</span><div style={S.dividerLine}/></div>
 
+            <div style={S.sectionLabel}>enter your email to use magic link</div>
             <input style={S.input} type="email" placeholder="your@email.com" value={email}
               onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==='Enter' && handleLogin()}
               autoCapitalize="none" />
             {error && <div style={S.error}>{error}</div>}
-            <button style={{ ...S.btn, opacity: email.trim() && !loading ? 1 : 0.35 }} onClick={handleLogin} disabled={!email.trim() || loading}>
+            <button style={{ ...S.btn, opacity: email.trim() && !loading ? 1 : 0.4 }} onClick={handleLogin} disabled={!email.trim() || loading}>
               {loading ? 'sending...' : 'send magic link'}
             </button>
-            <div style={S.note}>no password · no app store · just tap the link</div>
+            <div style={S.note}>no password · no app store · tap the link to sign in</div>
           </>
         )}
       </div>
@@ -76,18 +75,19 @@ const S = {
   app: { fontFamily:"'DM Mono','Courier New',monospace", background:"#0e0e0e", minHeight:"100vh", color:"#f0ede8", maxWidth:390, margin:"0 auto", display:"flex", alignItems:"center" },
   container: { padding:"0 24px", width:"100%", boxSizing:"border-box" },
   logo: { fontSize:40, fontWeight:700, letterSpacing:"0.15em", marginBottom:6 },
-  tagline: { fontSize:12, color:"#444", letterSpacing:"0.08em", marginBottom:56 },
-  googleBtn: { width:"100%", padding:"14px 20px", background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.08em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"center", gap:12, boxSizing:"border-box" },
-  divider: { display:"flex", alignItems:"center", gap:12, marginBottom:20 },
-  dividerLine: { flex:1, height:1, background:"#222" },
-  input: { width:"100%", background:"#141414", border:"1px solid #222", borderRadius:4, padding:16, color:"#f0ede8", fontSize:16, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", marginBottom:12 },
-  error: { fontSize:12, color:"#e05555", marginBottom:12, letterSpacing:"0.04em" },
-  btn: { width:"100%", padding:16, background:"transparent", color:"#f0ede8", border:"1px solid #333", borderRadius:4, fontSize:13, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:16, boxSizing:"border-box" },
-  note: { fontSize:11, color:"#333", textAlign:"center", letterSpacing:"0.06em" },
+  tagline: { fontSize:16, color:"#ccc", letterSpacing:"0.08em", marginBottom:48 },
+  sectionLabel: { fontSize:12, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 },
+  googleBtn: { width:"100%", padding:"14px 20px", background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:15, fontWeight:700, letterSpacing:"0.08em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:24, display:"flex", alignItems:"center", justifyContent:"center", gap:12, boxSizing:"border-box" },
+  divider: { display:"flex", alignItems:"center", gap:12, marginBottom:24 },
+  dividerLine: { flex:1, height:1, background:"#2a2a2a" },
+  input: { width:"100%", background:"#141414", border:"1px solid #333", borderRadius:4, padding:16, color:"#f0ede8", fontSize:16, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", marginBottom:12 },
+  error: { fontSize:13, color:"#e05555", marginBottom:12, letterSpacing:"0.04em" },
+  btn: { width:"100%", padding:16, background:"transparent", color:"#f0ede8", border:"1px solid #444", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:16, boxSizing:"border-box" },
+  note: { fontSize:13, color:"#888", textAlign:"center", letterSpacing:"0.04em", lineHeight:1.6 },
   sentBox: { display:"flex", flexDirection:"column", alignItems:"center", gap:10, textAlign:"center" },
   sentIcon: { fontSize:48, marginBottom:8 },
   sentTitle: { fontSize:22, fontWeight:700, letterSpacing:"0.04em" },
-  sentSub: { fontSize:14, color:"#888" },
-  sentSub2: { fontSize:12, color:"#555", marginBottom:8 },
-  resendBtn: { background:"none", border:"none", color:"#444", fontSize:12, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.06em", textDecoration:"underline", marginTop:8 },
+  sentSub: { fontSize:15, color:"#ccc" },
+  sentSub2: { fontSize:13, color:"#888", marginBottom:8 },
+  resendBtn: { background:"none", border:"none", color:"#888", fontSize:13, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.06em", textDecoration:"underline", marginTop:8 },
 };
