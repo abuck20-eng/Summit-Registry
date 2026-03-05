@@ -813,33 +813,7 @@ export default function App({ user, onSignOut }) {
   const flashes = logs.filter(l => l.first_go===true);
 
   // ── Dupe send prompt ─────────────────────────────────────────────────────────
-  const DupeSendPrompt = () => !dupeSendPrompt ? null : (
-    <div style={S.overlay} onClick={() => setDupeSendPrompt(null)}>
-      <div style={S.sheet} onClick={e => e.stopPropagation()}>
-        <div style={S.sheetHandle} />
-        <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
-          <div style={{ fontSize:28, marginBottom:12 }}>🐍</div>
-          <div style={{ fontSize:17, fontWeight:700, marginBottom:8 }}>
-            you've already sent {dupeSendPrompt.climbData.name}
-          </div>
-          <div style={{ fontSize:14, color:"#aaa", marginBottom:28, lineHeight:1.6 }}>
-            {dupeSendPrompt.climbData.grade} · {activeSession?.location}<br/>
-            is this a repeat, or a second send?
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-            <button style={{ ...S.btnSecondary, color:COLOR_REPEAT, borderColor:COLOR_REPEAT }} onClick={() => dupeSendPrompt.resolve("repeat")}>
-              log as repeat
-            </button>
-            <button style={{ ...S.btnPrimary, background:COLOR_SENT }} onClick={() => dupeSendPrompt.resolve("sent")}>
-              second send
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ── Shared sub-components ────────────────────────────────────────────────────
+  // Inline JSX helpers (not components — avoids React reconciliation issues)
   const Sheet = () => sheetEntry ? (
     <DetailSheet entry={sheetEntry}
       discipline={discipline || viewingSession?.discipline || "boulder"}
@@ -863,7 +837,27 @@ export default function App({ user, onSignOut }) {
     </div>
   );
 
-  const ConfirmEndEmpty = () => !confirmEndEmpty ? null : (
+  // Inline JSX helpers (not components — avoids React reconciliation issues)
+  const dupeSendOverlay = dupeSendPrompt ? (
+    <div style={S.overlay} onClick={() => setDupeSendPrompt(null)}>
+      <div style={S.sheet} onClick={e => e.stopPropagation()}>
+        <div style={S.sheetHandle} />
+        <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
+          <div style={{ fontSize:28, marginBottom:12 }}>🐍</div>
+          <div style={{ fontSize:17, fontWeight:700, marginBottom:8 }}>you've already sent {dupeSendPrompt.climbData.name}</div>
+          <div style={{ fontSize:14, color:"#aaa", marginBottom:28, lineHeight:1.6 }}>
+            {dupeSendPrompt.climbData.grade} · {activeSession?.location}<br/>is this a repeat, or a second send?
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <button style={{ ...S.btnSecondary, color:COLOR_REPEAT, borderColor:COLOR_REPEAT }} onClick={() => dupeSendPrompt.resolve("repeat")}>log as repeat</button>
+            <button style={{ ...S.btnPrimary, background:COLOR_SENT }} onClick={() => dupeSendPrompt.resolve("sent")}>second send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const confirmEndOverlay = confirmEndEmpty ? (
     <div style={S.overlay} onClick={() => setConfirmEndEmpty(false)}>
       <div style={S.sheet} onClick={e => e.stopPropagation()}>
         <div style={S.sheetHandle} />
@@ -877,7 +871,7 @@ export default function App({ user, onSignOut }) {
         </div>
       </div>
     </div>
-  );
+  ) : null;
 
   // ── LOADING ──────────────────────────────────────────────────────────────────
   if (loadingSessions) return <SummitLoader />;
@@ -890,7 +884,7 @@ export default function App({ user, onSignOut }) {
 
     return (
       <div style={S.app}>
-        <Sheet /><DeleteSessionModal /><ConfirmEndEmpty />
+        <Sheet /><DeleteSessionModal />{confirmEndOverlay}
         <div style={{ padding:"52px 24px 200px" }}>
           <div style={S.homeTop}><div style={S.logo}>SUMMIT</div><div style={S.tagline}>your climbing registry</div></div>
 
@@ -973,7 +967,7 @@ export default function App({ user, onSignOut }) {
   if (screen === "lookup") {
     return (
       <div style={S.app}>
-        <Sheet /><DeleteSessionModal /><ConfirmEndEmpty />
+        <Sheet /><DeleteSessionModal />{confirmEndOverlay}
         <div style={{ padding:"52px 24px 160px" }}>
           <div style={S.homeTop}><div style={S.logo}>LOOK UP</div><div style={S.tagline}>find sessions & climbs</div></div>
 
@@ -1295,7 +1289,7 @@ export default function App({ user, onSignOut }) {
     const backDest = tab === "lookup" ? "lookup" : "home";
 
     return (
-      <div style={S.app}><Sheet /><DeleteSessionModal /><ConfirmEndEmpty />
+      <div style={S.app}><Sheet /><DeleteSessionModal />{confirmEndOverlay}
         <div style={{ padding:"52px 24px 80px" }}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:40 }}>
             <button style={S.backBtn} onClick={() => { setViewingSession(null); setScreen(backDest); }}>←</button>
@@ -1349,7 +1343,7 @@ export default function App({ user, onSignOut }) {
 
     return (
       <div style={S.app}>
-        <ZapOverlay active={zapActive} /><Sheet /><DupeSendPrompt /><ConfirmEndEmpty />
+        <ZapOverlay active={zapActive} /><Sheet />{dupeSendOverlay}{confirmEndOverlay}
         {justLogged && (
           <div style={{...S.flash, background: justLogged.first_go?"#1a1a00":justLogged.outcome==="sent"?"#0d1f0d":justLogged.outcome==="repeat"?"#061828":"#0a1e1c", color: justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT, border:`1px solid ${justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT}22`}}>
             {justLogged.first_go?"⚡ flash!":justLogged.outcome==="sent"?"✓ send":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
