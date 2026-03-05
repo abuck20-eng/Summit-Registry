@@ -71,18 +71,21 @@ function SentButton({ disabled, onSent, onFirstGo }) {
   const handlePress = () => {
     if (disabled) return;
     if (tapped.current) {
+      // Double tap — cancel the pending send and fire flash instead
       clearTimeout(tapTimer.current);
       tapped.current = false;
       onFirstGo();
     } else {
+      // First tap — log immediately, but listen for a second tap
       tapped.current = true;
-      tapTimer.current = setTimeout(() => { tapped.current = false; onSent(); }, 750);
+      onSent();
+      tapTimer.current = setTimeout(() => { tapped.current = false; }, 750);
     }
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
     <button onClick={handlePress} style={{ ...S.outcomeBtn, background:"#4caf50", color:"#fff", opacity: disabled ? 0.55 : 1, transition:"opacity 0.2s" }}>
-      SENT
+      SEND
     </button>
   );
 }
