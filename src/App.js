@@ -147,9 +147,9 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
             <button key={o} onClick={() => setOutcome(o)} style={{
               flex:1, padding:"10px 4px", borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.08em",
               cursor:"pointer", fontFamily:"'DM Mono',monospace", transition:"all 0.12s",
-              background: outcome===o ? (o==="sent"?"#4caf50":o==="project"?"#1a1208":"#0a1a2a") : "#161616",
-              color: outcome===o ? (o==="sent"?"#fff":o==="project"?"#e07820":"#4a9fd4") : "#444",
-              border: outcome===o ? (o==="sent"?"1px solid #4caf50":o==="project"?"1px solid #3a2010":"1px solid #1a4a6a") : "1px solid #1e1e1e",
+              background: outcome===o ? (o==="sent"?COLOR_SENT:o==="project"?"#0a1e1c":"#061828") : "#161616",
+              color: outcome===o ? (o==="sent"?"#fff":o==="project"?COLOR_PROJECT:COLOR_REPEAT) : "#444",
+              border: outcome===o ? (o==="sent"?`1px solid ${COLOR_SENT}`:o==="project"?`1px solid ${COLOR_PROJECT}`:`1px solid ${COLOR_REPEAT}`) : "1px solid #1e1e1e",
             }}>{o.toUpperCase()}</button>
           ))}
         </div>
@@ -220,7 +220,7 @@ function LiveLogRow({ log, isNoteWindow, onTap, onDupe, isNew }) {
       <div style={{ display:"flex", alignItems:"center" }}>
         <div style={{ ...S.logRow, flex:1 }} onClick={onTap}>
           <div style={{ display:"flex", alignItems:"flex-start", gap:10, flex:1, minWidth:0 }}>
-            <span style={{ width:9, height:9, borderRadius:"50%", flexShrink:0, marginTop:5, display:"inline-block", background: isSent ? "#4caf50" : "transparent", border: isSent ? "none" : isRepeat ? "2px solid #4a9fd4" : "2px solid #e07820" }} />
+          <OutcomeIcon outcome={log.outcome} firstGo={log.first_go} size={24} />
             <div style={{ minWidth:0 }}>
               <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                 <span style={S.logName}>{displayName(log)}</span>
@@ -245,13 +245,11 @@ function LogDetailRow({ log, onTap }) {
   const hasTags = log.angles?.length > 0 || log.styles?.length > 0;
   const isSent = log.outcome === "sent";
   const isRepeat = log.outcome === "repeat";
-  const outcomeColor = isSent ? "#4caf50" : isRepeat ? "#4a9fd4" : "#e07820";
-  const outcomeIcon = isSent ? "✓" : isRepeat ? "↺" : "◎";
   return (
     <div style={S.detailRow} onClick={onTap}>
       <div style={S.detailTop}>
-        <span style={{ color: outcomeColor, fontSize:15, width:18, textAlign:"center", flexShrink:0 }}>{outcomeIcon}</span>
-        <span style={S.detailName}>{displayName(log)}{log.first_go && <span style={{ fontSize:10, color:"#a06010", marginLeft:6 }}>⚡</span>}</span>
+        <OutcomeIcon outcome={log.outcome} firstGo={log.first_go} size={26} />
+        <span style={S.detailName}>{displayName(log)}</span>
         <span style={S.detailGrade}>{log.grade}</span>
       </div>
       {hasTags && <div style={S.tagPills}>{[...(log.angles||[]),...(log.styles||[])].map(t => <span key={t} style={S.pill}>{t}</span>)}</div>}
@@ -261,7 +259,59 @@ function LogDetailRow({ log, onTap }) {
   );
 }
 
-// ── Tappable bar chart ────────────────────────────────────────────────────────
+// ── Outcome colors ────────────────────────────────────────────────────────────
+const COLOR_SENT    = "#4caf50";
+const COLOR_REPEAT  = "#4a9fd4";
+const COLOR_PROJECT = "#2ab0a0";
+const COLOR_FLASH   = "#ffe44d";
+
+// ── Outcome icon SVG component ────────────────────────────────────────────────
+function OutcomeIcon({ outcome, firstGo, size = 26 }) {
+  const r = size / 2;
+  const bg = outcome === "sent" ? COLOR_SENT : outcome === "repeat" ? COLOR_REPEAT : COLOR_PROJECT;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink:0 }}>
+      {/* Background circle */}
+      <circle cx={r} cy={r} r={r} fill={bg} />
+
+      {outcome === "sent" && !firstGo && (
+        // Solid filled circle — already drawn above, nothing extra needed
+        <circle cx={r} cy={r} r={r*0.45} fill="#fff" opacity={0.25} />
+      )}
+
+      {outcome === "sent" && firstGo && (
+        // Flash bolt with black outline then yellow fill
+        <>
+          <polygon points={`${size*0.58},${size*0.1} ${size*0.28},${size*0.52} ${size*0.48},${size*0.52} ${size*0.38},${size*0.9} ${size*0.72},${size*0.44} ${size*0.52},${size*0.44}`}
+            fill="none" stroke="#000" strokeWidth={size*0.08} strokeLinejoin="round" />
+          <polygon points={`${size*0.58},${size*0.1} ${size*0.28},${size*0.52} ${size*0.48},${size*0.52} ${size*0.38},${size*0.9} ${size*0.72},${size*0.44} ${size*0.52},${size*0.44}`}
+            fill={COLOR_FLASH} />
+        </>
+      )}
+
+      {outcome === "repeat" && (
+        // Circular arrows ↺
+        <>
+          <path d={`M${size*0.62},${size*0.28} A${size*0.22},${size*0.22} 0 1 0 ${size*0.64},${size*0.62}`}
+            fill="none" stroke="#fff" strokeWidth={size*0.11} strokeLinecap="round" />
+          <polygon points={`${size*0.56},${size*0.56} ${size*0.72},${size*0.60} ${size*0.64},${size*0.74}`} fill="#fff" />
+        </>
+      )}
+
+      {outcome === "project" && (
+        // Hammer on filled circle
+        <>
+          {/* handle */}
+          <line x1={size*0.54} y1={size*0.52} x2={size*0.76} y2={size*0.78}
+            stroke="#fff" strokeWidth={size*0.10} strokeLinecap="round" />
+          {/* head — rectangle rotated */}
+          <rect x={size*0.22} y={size*0.30} width={size*0.40} height={size*0.22} rx={size*0.04}
+            fill="#fff" transform={`rotate(-40 ${size*0.42} ${size*0.41})`} />
+        </>
+      )}
+    </svg>
+  );
+}
 function BarChart({ data, color = "#f0ede8", unit = "" }) {
   const [tapped, setTapped] = useState(null);
   if (!data || data.length === 0) return null;
@@ -811,15 +861,12 @@ export default function App({ user, onSignOut }) {
               {!lookupQuery && <div style={{ color:"#555", fontSize:13, padding:"20px 0" }}>type a climb name to search</div>}
               {lookupQuery && filteredClimbs.length === 0 && <div style={{ color:"#555", fontSize:13, padding:"20px 0" }}>no climbs named "{lookupQuery}"</div>}
               {filteredClimbs.map(c => {
-                const isSent = c.outcome==="sent"; const isRepeat = c.outcome==="repeat";
-                const outcomeColor = isSent?"#4caf50":isRepeat?"#4a9fd4":"#e07820";
-                const outcomeIcon = isSent?"✓":isRepeat?"↺":"◎";
                 const hasTags = (c.angles||[]).length > 0 || (c.styles||[]).length > 0;
                 return (
                   <div key={c.id} style={S.detailRow} onClick={() => openSheet(c)}>
                     <div style={S.detailTop}>
-                      <span style={{ color: outcomeColor, fontSize:15, width:18, textAlign:"center", flexShrink:0 }}>{outcomeIcon}</span>
-                      <span style={S.detailName}>{displayName(c)}{c.first_go && <span style={{ fontSize:10, color:"#a06010", marginLeft:6 }}>⚡</span>}</span>
+                      <OutcomeIcon outcome={c.outcome} firstGo={c.first_go} size={26} />
+                      <span style={S.detailName}>{displayName(c)}</span>
                       <span style={S.detailGrade}>{c.grade}</span>
                     </div>
                     {hasTags && <div style={S.tagPills}>{[...(c.angles||[]),...(c.styles||[])].map(t=><span key={t} style={S.pill}>{t}</span>)}</div>}
@@ -1061,8 +1108,8 @@ export default function App({ user, onSignOut }) {
       <div style={S.app}>
         <ZapOverlay active={zapActive} /><Sheet />
         {justLogged && (
-          <div style={{...S.flash, background: justLogged.first_go?"#fff8e0":justLogged.outcome==="sent"?"#c8f5c8":justLogged.outcome==="repeat"?"#061828":"#1e1e1e", color: justLogged.first_go?"#a06010":justLogged.outcome==="sent"?"#1a5c1a":justLogged.outcome==="repeat"?"#4a9fd4":"#777", border: justLogged.outcome==="project"?"1px solid #2a2a2a":justLogged.outcome==="repeat"?"1px solid #1a4a6a":"none"}}>
-            {justLogged.first_go?"⚡ first go!":justLogged.outcome==="sent"?"✓ sent":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
+          <div style={{...S.flash, background: justLogged.first_go?"#1a1a00":justLogged.outcome==="sent"?"#0d1f0d":justLogged.outcome==="repeat"?"#061828":"#0a1e1c", color: justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT, border:`1px solid ${justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT}22`}}>
+            {justLogged.first_go?"⚡ flash!":justLogged.outcome==="sent"?"✓ sent":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
           </div>
         )}
 
@@ -1075,9 +1122,9 @@ export default function App({ user, onSignOut }) {
             <div style={S.sessionLocation}>{activeSession?.location}</div>
             <div style={S.sessionMeta}>
               <span style={{color:"#ccc"}}>{logs.length} logged</span>
-              {sends.length > 0 && <span style={{color:"#4caf50"}}> · {sends.length} sent</span>}
-              {repeats.length > 0 && <span style={{color:"#4a9fd4"}}> · {repeats.length} ↺</span>}
-              {flashes.length > 0 && <span style={{color:"#c07820"}}> · {flashes.length} ⚡</span>}
+              {sends.length > 0 && <span style={{color:COLOR_SENT}}> · {sends.length} sent</span>}
+              {repeats.length > 0 && <span style={{color:COLOR_REPEAT}}> · {repeats.length} ↺</span>}
+              {flashes.length > 0 && <span style={{color:COLOR_FLASH}}> · {flashes.length} ⚡</span>}
             </div>
           </div>
           <button style={S.topBarIconBtn} onClick={() => { setNewLocation(activeSession?.location||""); setEditingLocation(true); }}>✎</button>
@@ -1112,8 +1159,8 @@ export default function App({ user, onSignOut }) {
             </div>
           )}
           <SentButton disabled={!canLog} onSent={handleSent} onFirstGo={handleFirstGo} />
-          <button style={{...S.outcomeBtn, background:"#150f00", color:canLog?"#e07820":"#2a1a08", border:`1px solid ${canLog?"#3a2010":"#1e1608"}`, transition:"all 0.15s"}} onClick={() => { if(canLog){showTapHint(); commitLog("project");} }}>PROJECT</button>
-          <button style={{...S.outcomeBtn, background:"#06111a", color:canLog?"#4a9fd4":"#0a2030", border:`1px solid ${canLog?"#1a4a6a":"#061018"}`, transition:"all 0.15s"}} onClick={() => { if(canLog){showTapHint(); commitLog("repeat");} }}>REPEAT</button>
+          <button style={{...S.outcomeBtn, background:"#0a1e1c", color:canLog?COLOR_PROJECT:"#0a1a18", border:`1px solid ${canLog?COLOR_PROJECT:"#061210"}`, transition:"all 0.15s"}} onClick={() => { if(canLog){showTapHint(); commitLog("project");} }}>PROJECT</button>
+          <button style={{...S.outcomeBtn, background:"#06111a", color:canLog?COLOR_REPEAT:"#0a2030", border:`1px solid ${canLog?COLOR_REPEAT:"#061018"}`, transition:"all 0.15s"}} onClick={() => { if(canLog){showTapHint(); commitLog("repeat");} }}>REPEAT</button>
         </div>
 
         {logs.length > 0 && (
@@ -1178,8 +1225,8 @@ export default function App({ user, onSignOut }) {
             )}
             {vProjects.length > 0 && (
               <div style={{ background:"#150f00", border:"1px solid #3a2010", borderRadius:6, padding:"10px 16px", flex:1 }}>
-                <div style={{ fontSize:10, color:"#e07820", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>projects</div>
-                <div style={{ fontSize:20, fontWeight:700, color:"#e07820" }}>{vProjects.length}</div>
+                <div style={{ fontSize:10, color:COLOR_PROJECT, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>projects</div>
+                <div style={{ fontSize:20, fontWeight:700, color:COLOR_PROJECT }}>{vProjects.length}</div>
               </div>
             )}
           </div>
