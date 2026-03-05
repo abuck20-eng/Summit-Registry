@@ -53,7 +53,7 @@ export default function AuthScreen() {
               {googleLoading ? 'signing in...' : 'continue with Google'}
             </button>
 
-            <div style={S.divider}><div style={S.dividerLine}/><span style={{ color:"#888", fontSize:12, letterSpacing:"0.1em", flexShrink:0 }}>or</span><div style={S.dividerLine}/></div>
+            <div style={S.divider}><div style={S.dividerLine}/><span style={{ color:"#aaa", fontSize:12, letterSpacing:"0.1em", flexShrink:0 }}>or</span><div style={S.dividerLine}/></div>
 
             <div style={S.sectionLabel}>enter your email to use magic link</div>
             <input style={S.input} type="email" placeholder="your@email.com" value={email}
@@ -75,19 +75,19 @@ const S = {
   app: { fontFamily:"'DM Mono','Courier New',monospace", background:"#0e0e0e", minHeight:"100vh", color:"#f0ede8", maxWidth:390, margin:"0 auto", display:"flex", alignItems:"center" },
   container: { padding:"0 24px", width:"100%", boxSizing:"border-box" },
   logo: { fontSize:40, fontWeight:700, letterSpacing:"0.15em", marginBottom:6 },
-  tagline: { fontSize:16, color:"#ccc", letterSpacing:"0.08em", marginBottom:48 },
-  sectionLabel: { fontSize:12, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 },
+  tagline: { fontSize:16, color:"#ddd", letterSpacing:"0.08em", marginBottom:48 },
+  sectionLabel: { fontSize:12, color:"#ccc", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 },
   googleBtn: { width:"100%", padding:"14px 20px", background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:15, fontWeight:700, letterSpacing:"0.08em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:24, display:"flex", alignItems:"center", justifyContent:"center", gap:12, boxSizing:"border-box" },
   divider: { display:"flex", alignItems:"center", gap:12, marginBottom:24 },
   dividerLine: { flex:1, height:1, background:"#2a2a2a" },
   input: { width:"100%", background:"#141414", border:"1px solid #333", borderRadius:4, padding:16, color:"#f0ede8", fontSize:16, fontFamily:"'DM Mono',monospace", outline:"none", boxSizing:"border-box", marginBottom:12 },
   error: { fontSize:13, color:"#e05555", marginBottom:12, letterSpacing:"0.04em" },
   btn: { width:"100%", padding:16, background:"transparent", color:"#f0ede8", border:"1px solid #444", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginBottom:16, boxSizing:"border-box" },
-  note: { fontSize:13, color:"#888", textAlign:"center", letterSpacing:"0.04em", lineHeight:1.6 },
+  note: { fontSize:13, color:"#aaa", textAlign:"center", letterSpacing:"0.04em", lineHeight:1.6 },
   sentBox: { display:"flex", flexDirection:"column", alignItems:"center", gap:10, textAlign:"center" },
   sentIcon: { fontSize:48, marginBottom:8 },
   sentTitle: { fontSize:22, fontWeight:700, letterSpacing:"0.04em" },
-  sentSub: { fontSize:15, color:"#ccc" },
-  sentSub2: { fontSize:13, color:"#888", marginBottom:8 },
-  resendBtn: { background:"none", border:"none", color:"#888", fontSize:13, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.06em", textDecoration:"underline", marginTop:8 },
+  sentSub: { fontSize:15, color:"#ddd" },
+  sentSub2: { fontSize:13, color:"#aaa", marginBottom:8 },
+  resendBtn: { background:"none", border:"none", color:"#aaa", fontSize:13, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.06em", textDecoration:"underline", marginTop:8 },
 };
