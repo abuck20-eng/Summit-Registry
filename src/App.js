@@ -531,10 +531,10 @@ export default function App({ user, onSignOut }) {
         (c.name.trim().toLowerCase() + "|" + c.grade + "|" + ((allSessions.find(s=>s.id===c.session_id)?.location)||"").trim().toLowerCase()) === key
       );
       if (priorSend) {
-        setDupeSendPrompt({ climbData, resolve: (useOutcome) => {
+        setDupeSendPrompt(() => ({ climbData, resolve: (useOutcome) => {
           setDupeSendPrompt(null);
           _doCommit({ ...climbData, outcome: useOutcome }, firstGo);
-        }});
+        }}));
         return;
       }
     }
