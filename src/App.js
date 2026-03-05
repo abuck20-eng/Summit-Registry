@@ -646,24 +646,15 @@ export default function App({ user, onSignOut }) {
 
   const endSession = async () => {
     if (!activeSession) return;
-    // Use allClimbs as source of truth — logs state may be stale if user navigated away
-    const sessionClimbs = allClimbs.filter(c => String(c.session_id) === String(activeSession.id));
-    const climbCount = sessionClimbs.length > 0 ? sessionClimbs.length : logs.length;
-    if (climbCount === 0) {
-      // No native confirm on iOS PWA — use custom modal instead
+    if (logs.length === 0) {
       setConfirmEndEmpty(true);
       return;
     }
-    await _doEndSession(sessionClimbs.length > 0 ? sessionClimbs : logs);
-  };
-
-  const _doEndSession = async (finalLogs) => {
-    if (!activeSession) return;
     clearTimeout(noteTimerRef.current); setNoteWindowId(null);
     await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
-    const done = { ...activeSession, logs: finalLogs, ended_at: new Date().toISOString() };
+    const done = { ...activeSession, logs, ended_at: new Date().toISOString() };
     setAllSessions(prev => prev.map(s => s.id === activeSession.id ? done : s));
-    setActiveSession(null); setLogs([]); setViewingSession(done); setScreen("summary");
+    setActiveSession(null); setViewingSession(done); setScreen("summary");
   };
 
   const endEmptySession = async () => {
