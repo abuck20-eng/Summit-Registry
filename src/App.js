@@ -454,8 +454,7 @@ export default function App({ user, onSignOut }) {
   const [lookupQuery, setLookupQuery] = useState("");
   const [lookupMode, setLookupMode] = useState("sessions"); // "sessions" | "climbs"
   const [showAllSessions, setShowAllSessions] = useState(false);
-  const noteTimerRef = useRef(null);
-  const hintTimerRef = useRef(null);
+  const [dupeSendPrompt, setDupeSendPrompt] = useState(null); // { climbData, tempId, savedClimb }
 
   const grades = discipline === "route" ? ROUTE_GRADES : BOULDER_GRADES;
   const isOutdoor = environment === "outdoor";
@@ -521,6 +520,27 @@ export default function App({ user, onSignOut }) {
   const commitLog = async (outcome, firstGo = false) => {
     if (!canLog || !activeSession) return;
     const climbData = { name: climbName.trim()||null, grade: selectedGrade, outcome, first_go: firstGo, angles:[], styles:[], note:"", is_gym: isGym };
+
+    // Duplicate send check — outdoor named climbs only
+    if (outcome === "sent" && climbData.name && !isGym) {
+      const location = activeSession.location || "";
+      const key = climbData.name.trim().toLowerCase() + "|" + climbData.grade + "|" + location.trim().toLowerCase();
+      const priorSend = allClimbs.find(c =>
+        c.outcome === "sent" && c.name &&
+        (c.name.trim().toLowerCase() + "|" + c.grade + "|" + ((allSessions.find(s=>s.id===c.session_id)?.location)||"").trim().toLowerCase()) === key
+      );
+      if (priorSend) {
+        setDupeSendPrompt({ climbData, resolve: (useOutcome) => {
+          setDupeSendPrompt(null);
+          _doCommit({ ...climbData, outcome: useOutcome }, firstGo);
+        }});
+        return;
+      }
+    }
+    _doCommit(climbData, firstGo);
+  };
+
+  const _doCommit = async (climbData, firstGo = false) => {
     const tempId = `temp-${Date.now()}`;
     const tempEntry = { id: tempId, ...climbData, logged_at: new Date().toISOString() };
     setLogs(prev => [tempEntry, ...prev]);
@@ -675,6 +695,53 @@ export default function App({ user, onSignOut }) {
     return allClimbs.filter(c => (c.name||"").toLowerCase().includes(q)).slice(0, 30);
   }, [lookupQuery, allClimbs]);
 
+  // ── Open projects logic ─────────────────────────────────────────────────────
+  // fingerprint = name (lowercase) + grade + location — outdoor named climbs only
+  const openProjects = useMemo(() => {
+    // Build a map of fingerprint → { projectLogs, sentLogs }
+    const map = {};
+    const outdoorSessions = Object.fromEntries(allSessions.map(s => [s.id, s]));
+    allClimbs.forEach(c => {
+      if (!c.name || c.is_gym) return; // outdoor named only
+      const session = outdoorSessions[c.session_id];
+      if (!session || session.environment === "gym") return;
+      const location = session.location || "";
+      const key = `${c.name.trim().toLowerCase()}|${c.grade}|${location.trim().toLowerCase()}`;
+      if (!map[key]) map[key] = { name: c.name, grade: c.grade, location, projectLogs: [], sentLogs: [], lastAttempt: null };
+      if (c.outcome === "project") map[key].projectLogs.push(c);
+      if (c.outcome === "sent") map[key].sentLogs.push(c);
+      // track most recent attempt date
+      const d = new Date(c.logged_at);
+      if (!map[key].lastAttempt || d > map[key].lastAttempt) map[key].lastAttempt = d;
+    });
+    // Open = has projects, no sends
+    return Object.values(map)
+      .filter(p => p.projectLogs.length > 0 && p.sentLogs.length === 0)
+      .sort((a, b) => b.lastAttempt - a.lastAttempt);
+  }, [allClimbs, allSessions]);
+
+  const [projectFilterArea, setProjectFilterArea] = useState("");
+  const [projectFilterGrade, setProjectFilterGrade] = useState("");
+
+  const filteredProjects = useMemo(() => {
+    let list = openProjects;
+    if (projectFilterArea.trim()) {
+      const q = projectFilterArea.toLowerCase();
+      list = list.filter(p => p.location.toLowerCase().includes(q));
+    }
+    if (projectFilterGrade) {
+      list = list.filter(p => p.grade === projectFilterGrade);
+    }
+    return list;
+  }, [openProjects, projectFilterArea, projectFilterGrade]);
+
+  // All distinct locations and grades that appear in open projects (for filter chips)
+  const projectAreas = useMemo(() => [...new Set(openProjects.map(p => p.location))].sort(), [openProjects]);
+  const projectGrades = useMemo(() => {
+    const grades = [...new Set(openProjects.map(p => p.grade))];
+    return grades.sort((a, b) => (gradeSort(a, BOULDER_GRADES.includes(a) ? "boulder" : "route") - gradeSort(b, BOULDER_GRADES.includes(b) ? "boulder" : "route")));
+  }, [openProjects]);
+
   // ── Insights data ───────────────────────────────────────────────────────────
   const [insightsDiscipline, setInsightsDiscipline] = useState("boulder");
   const [showBestExplain, setShowBestExplain] = useState(false);
@@ -737,6 +804,33 @@ export default function App({ user, onSignOut }) {
   const sends   = logs.filter(l => l.outcome==="sent");
   const repeats = logs.filter(l => l.outcome==="repeat");
   const flashes = logs.filter(l => l.first_go===true);
+
+  // ── Dupe send prompt ─────────────────────────────────────────────────────────
+  const DupeSendPrompt = () => !dupeSendPrompt ? null : (
+    <div style={S.overlay} onClick={() => setDupeSendPrompt(null)}>
+      <div style={S.sheet} onClick={e => e.stopPropagation()}>
+        <div style={S.sheetHandle} />
+        <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
+          <div style={{ fontSize:28, marginBottom:12 }}>🐍</div>
+          <div style={{ fontSize:17, fontWeight:700, marginBottom:8 }}>
+            you've already sent {dupeSendPrompt.climbData.name}
+          </div>
+          <div style={{ fontSize:14, color:"#aaa", marginBottom:28, lineHeight:1.6 }}>
+            {dupeSendPrompt.climbData.grade} · {activeSession?.location}<br/>
+            is this a repeat, or a second send?
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            <button style={{ ...S.btnSecondary, color:COLOR_REPEAT, borderColor:COLOR_REPEAT }} onClick={() => dupeSendPrompt.resolve("repeat")}>
+              log as repeat
+            </button>
+            <button style={{ ...S.btnPrimary, background:COLOR_SENT }} onClick={() => dupeSendPrompt.resolve("sent")}>
+              second send
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   // ── Shared sub-components ────────────────────────────────────────────────────
   const Sheet = () => sheetEntry ? (
@@ -860,26 +954,30 @@ export default function App({ user, onSignOut }) {
         <div style={{ padding:"52px 24px 160px" }}>
           <div style={S.homeTop}><div style={S.logo}>LOOK UP</div><div style={S.tagline}>find sessions & climbs</div></div>
 
-          {/* Search input */}
-          <input
-            style={{ ...S.nameInputBoxed, marginBottom:16 }}
-            placeholder={lookupMode === "sessions" ? "search by location..." : "search by climb name..."}
-            value={lookupQuery}
-            onChange={e => setLookupQuery(e.target.value)}
-            autoCapitalize="off"
-          />
-
-          {/* Mode toggle */}
-          <div style={{ display:"flex", gap:6, marginBottom:24 }}>
-            {["sessions","climbs"].map(m => (
+          {/* Mode toggle — three modes */}
+          <div style={{ display:"flex", gap:6, marginBottom:20 }}>
+            {["sessions","climbs","projects"].map(m => (
               <button key={m} onClick={() => setLookupMode(m)} style={{
-                flex:1, padding:"9px 0", borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.1em",
+                flex:1, padding:"9px 4px", borderRadius:6, fontSize:10, fontWeight:700, letterSpacing:"0.08em",
                 cursor:"pointer", fontFamily:"'DM Mono',monospace", border:"none",
-                background: lookupMode===m ? "#f0ede8" : "#161616", color: lookupMode===m ? "#0e0e0e" : "#666",
+                background: lookupMode===m ? "#f0ede8" : "#161616",
+                color: lookupMode===m ? "#0e0e0e" : "#777",
               }}>{m.toUpperCase()}</button>
             ))}
           </div>
 
+          {/* Search input — hidden for projects mode (uses filter chips instead) */}
+          {lookupMode !== "projects" && (
+            <input
+              style={{ ...S.nameInputBoxed, marginBottom:20 }}
+              placeholder={lookupMode === "sessions" ? "search by location..." : "search by climb name..."}
+              value={lookupQuery}
+              onChange={e => setLookupQuery(e.target.value)}
+              autoCapitalize="off"
+            />
+          )}
+
+          {/* SESSIONS */}
           {lookupMode === "sessions" && (
             <>
               {filteredSessions.length === 0 && lookupQuery && (
@@ -896,13 +994,14 @@ export default function App({ user, onSignOut }) {
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                     <div style={S.sessionCardDate}>{new Date(s.started_at).toLocaleDateString([],{month:"short",day:"numeric"})}</div>
-                    <div style={{ fontSize:18, color:"#888" }}>›</div>
+                    <div style={{ fontSize:18, color:"#aaa" }}>›</div>
                   </div>
                 </div>
               ))}
             </>
           )}
 
+          {/* CLIMBS */}
           {lookupMode === "climbs" && (
             <>
               {!lookupQuery && <div style={{ color:"#999", fontSize:13, padding:"20px 0" }}>type a climb name to search</div>}
@@ -921,6 +1020,80 @@ export default function App({ user, onSignOut }) {
                   </div>
                 );
               })}
+            </>
+          )}
+
+          {/* OPEN PROJECTS */}
+          {lookupMode === "projects" && (
+            <>
+              {/* Area filter chips */}
+              {projectAreas.length > 0 && (
+                <div style={{ marginBottom:12 }}>
+                  <div style={{ fontSize:11, color:"#aaa", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8 }}>filter by area</div>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {projectAreas.map(area => (
+                      <button key={area} onClick={() => setProjectFilterArea(projectFilterArea === area ? "" : area)} style={{
+                        padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+                        fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s",
+                        background: projectFilterArea === area ? COLOR_PROJECT : "#1e1e1e",
+                        color: projectFilterArea === area ? "#fff" : "#aaa",
+                      }}>{area}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Grade filter chips */}
+              {projectGrades.length > 0 && (
+                <div style={{ marginBottom:20 }}>
+                  <div style={{ fontSize:11, color:"#aaa", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8 }}>filter by grade</div>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {projectGrades.map(g => (
+                      <button key={g} onClick={() => setProjectFilterGrade(projectFilterGrade === g ? "" : g)} style={{
+                        padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+                        fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s",
+                        background: projectFilterGrade === g ? "#f0ede8" : "#1e1e1e",
+                        color: projectFilterGrade === g ? "#0e0e0e" : "#aaa",
+                      }}>{g}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {openProjects.length === 0 && (
+                <div style={{ textAlign:"center", padding:"40px 0" }}>
+                  <div style={{ fontSize:36, marginBottom:12 }}>🐍</div>
+                  <div style={{ fontSize:16, fontWeight:700, color:"#f0ede8", marginBottom:6 }}>no open projects</div>
+                  <div style={{ fontSize:13, color:"#aaa", lineHeight:1.6 }}>log outdoor climbs as PROJECT and they'll appear here until you send them</div>
+                </div>
+              )}
+
+              {openProjects.length > 0 && filteredProjects.length === 0 && (
+                <div style={{ color:"#999", fontSize:13, padding:"20px 0" }}>no projects match those filters</div>
+              )}
+
+              {filteredProjects.map((p, i) => (
+                <div key={i} style={{ ...S.detailRow }}>
+                  <div style={S.detailTop}>
+                    <OutcomeIcon outcome="project" size={26} />
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={S.detailName}>{p.name}</div>
+                      <div style={{ fontSize:12, color:"#aaa", marginTop:2 }}>
+                        {p.location} · {p.projectLogs.length} {p.projectLogs.length === 1 ? "attempt" : "attempts"}
+                        {" · last "}{p.lastAttempt.toLocaleDateString([],{month:"short",day:"numeric"})}
+                      </div>
+                    </div>
+                    <span style={S.detailGrade}>{p.grade}</span>
+                  </div>
+                </div>
+              ))}
+
+              {filteredProjects.length > 0 && (
+                <div style={{ fontSize:12, color:"#777", marginTop:16, textAlign:"center", lineHeight:1.6 }}>
+                  {filteredProjects.length} open {filteredProjects.length === 1 ? "project" : "projects"}
+                  {projectFilterArea || projectFilterGrade ? " matching filters" : ""}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1153,7 +1326,7 @@ export default function App({ user, onSignOut }) {
 
     return (
       <div style={S.app}>
-        <ZapOverlay active={zapActive} /><Sheet />
+        <ZapOverlay active={zapActive} /><Sheet /><DupeSendPrompt />
         {justLogged && (
           <div style={{...S.flash, background: justLogged.first_go?"#1a1a00":justLogged.outcome==="sent"?"#0d1f0d":justLogged.outcome==="repeat"?"#061828":"#0a1e1c", color: justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT, border:`1px solid ${justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT}22`}}>
             {justLogged.first_go?"⚡ flash!":justLogged.outcome==="sent"?"✓ send":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
