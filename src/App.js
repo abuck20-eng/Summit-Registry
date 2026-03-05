@@ -645,9 +645,8 @@ export default function App({ user, onSignOut }) {
 
   const endSession = async () => {
     if (!activeSession) return;
-    // Always use fresh climbs from allClimbs, not logs state (which may be stale if navigated away)
-    const sessionClimbs = allClimbs.filter(c => c.session_id === activeSession.id);
-    if (sessionClimbs.length === 0) {
+    const currentLogs = logs.filter(l => !String(l.id).startsWith('temp-'));
+    if (currentLogs.length === 0 && logs.length === 0) {
       const confirmed = window.confirm("No climbs logged — end session anyway? It won't be saved.");
       if (!confirmed) return;
       await supabase.from('sessions').delete().eq('id', activeSession.id);
@@ -657,9 +656,9 @@ export default function App({ user, onSignOut }) {
     }
     clearTimeout(noteTimerRef.current); setNoteWindowId(null);
     await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
-    const done = {...activeSession, logs: sessionClimbs, ended_at: new Date().toISOString()};
-    setAllSessions(prev => prev.map(s => s.id===activeSession.id ? done : s));
-    setLogs(sessionClimbs);
+    const finalLogs = logs.length > 0 ? logs : allClimbs.filter(c => String(c.session_id) === String(activeSession.id));
+    const done = { ...activeSession, logs: finalLogs, ended_at: new Date().toISOString() };
+    setAllSessions(prev => prev.map(s => s.id === activeSession.id ? done : s));
     setActiveSession(null); setViewingSession(done); setScreen("summary");
   };
 
@@ -1420,7 +1419,7 @@ export default function App({ user, onSignOut }) {
         <div style={S.endSessionBar}>
           {isAddingClimbs
             ? <button style={S.endSessionBtn} onClick={() => doneAddingClimbs("sessionDetail")}>DONE ADDING</button>
-            : <button style={S.endSessionBtn} onClick={endSession}>END SESSION</button>
+            : <button style={S.endSessionBtn} onClick={() => { document.activeElement?.blur(); endSession(); }}>END SESSION</button>
           }
         </div>
       </div>
@@ -1532,7 +1531,7 @@ const S = {
   addPromptActive:{ fontSize:13, color:"#5aaa5a", marginTop:3, letterSpacing:"0.04em", fontWeight:600 },
   addPromptFaded:{ fontSize:13, color:"#aaa", marginTop:3, letterSpacing:"0.04em" },
   logGrade:{ fontSize:14, color:"#ddd", fontWeight:600, flexShrink:0, marginLeft:8 },
-  endSessionBar:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"12px 24px 32px", background:"linear-gradient(transparent, #0e0e0e 30%)", boxSizing:"border-box" },
+  endSessionBar:{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"12px 24px 32px", background:"linear-gradient(transparent, #0e0e0e 30%)", boxSizing:"border-box", zIndex:50 },
   endSessionBtn:{ width:"100%", padding:18, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:6, fontSize:15, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace" },
   overlay:{ position:"fixed", inset:0, background:"rgba(0,0,0,0.92)", display:"flex", alignItems:"flex-end", zIndex:200 },
   sheet:{ background:"#131313", borderTop:"1px solid #222", borderRadius:"16px 16px 0 0", padding:"20px 24px 48px", width:"100%", maxWidth:390, margin:"0 auto", boxSizing:"border-box", maxHeight:"88vh", overflowY:"auto" },
