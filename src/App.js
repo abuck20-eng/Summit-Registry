@@ -7,7 +7,7 @@ const ROUTE_GRADES = ["5.6","5.7","5.8","5.9","5.10a","5.10b","5.10c","5.10d","5
 const BOULDER_SORT = Object.fromEntries(BOULDER_GRADES.map((g,i) => [g, i+1]));
 const ROUTE_SORT   = Object.fromEntries(ROUTE_GRADES.map((g,i) => [g, i+1]));
 const ANGLES = ["Slab","Vert","Overhang","Roof"];
-const STYLES = ["Crimps","Pinches","Pockets","Slopers","Compression","Dynos","Heel hook","Lockoff","Smear","Power Endurance","Endurance"];
+const STYLES = ["Crimps","Pinches","Pockets","Slopers","Compression","Dynos","Heel hook","Lockoff","Smear","Power Endurance","Endurance","Finger crack","Hand crack","Offwidth","Chimney"];
 const NOTE_WINDOW_MS = 7000;
 const DOUBLE_TAP_MS  = 300;
 
@@ -66,19 +66,22 @@ function ZapOverlay({ active }) {
 // ── Sent button with double-tap first go ──────────────────────────────────────
 function SentButton({ disabled, onSent, onFirstGo }) {
   const tapTimer = useRef(null);
-  const [armed, setArmed] = useState(false);
+  const tapped = useRef(false);
   const handlePress = () => {
     if (disabled) return;
-    if (armed) { clearTimeout(tapTimer.current); setArmed(false); onFirstGo(); }
-    else { setArmed(true); tapTimer.current = setTimeout(() => { setArmed(false); onSent(); }, 750); }
+    if (tapped.current) {
+      clearTimeout(tapTimer.current);
+      tapped.current = false;
+      onFirstGo();
+    } else {
+      tapped.current = true;
+      tapTimer.current = setTimeout(() => { tapped.current = false; onSent(); }, 750);
+    }
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
-    <button onClick={handlePress} style={{ ...S.outcomeBtn, background: armed ? "#ffe44d" : "#4caf50", color: armed ? "#0e0e0e" : "#fff", opacity: disabled ? 0.25 : 1, border: armed ? "none" : "none", transition:"all 0.15s", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:2 }}>
-      {armed
-        ? <><span style={{ fontSize:16, fontWeight:700, letterSpacing:"0.06em" }}>⚡ FLASH?</span><span style={{ fontSize:9, color:"#555", letterSpacing:"0.06em" }}>tap to confirm</span></>
-        : <span>SENT</span>
-      }
+    <button onClick={handlePress} style={{ ...S.outcomeBtn, background:"#4caf50", color:"#fff", opacity: disabled ? 0.25 : 1, transition:"opacity 0.15s" }}>
+      SENT
     </button>
   );
 }
@@ -234,7 +237,10 @@ function LiveLogRow({ log, isNoteWindow, onTap, onDupe, isNew }) {
           </div>
           <span style={S.logGrade}>{log.grade}</span>
         </div>
-        <button onClick={e => { e.stopPropagation(); onDupe(log); }} style={{ background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:4, color:"#aaa", fontSize:18, fontWeight:300, width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, marginLeft:8, fontFamily:"'DM Mono',monospace", lineHeight:1 }}>+</button>
+        <button onClick={e => { e.stopPropagation(); onDupe(log); }} style={{ background:"#1a1a1a", border:"1px solid #2a2a2a", borderRadius:4, color:"#aaa", fontSize:11, fontWeight:700, width:38, height:38, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, marginLeft:8, fontFamily:"'DM Mono',monospace", lineHeight:1, gap:1, letterSpacing:"0.04em" }}>
+          <span style={{ fontSize:14 }}>+</span>
+          <span style={{ fontSize:8, color:"#666" }}>again</span>
+        </button>
       </div>
     </div>
   );
@@ -482,8 +488,6 @@ export default function App({ user, onSignOut }) {
     if (isAddingClimbs) return;
     setSessionOnboardHint(false);
     setFirstClimbHint(true);
-    clearTimeout(hintTimerRef.current);
-    hintTimerRef.current = setTimeout(() => setFirstClimbHint(false), 20000);
   };
 
   const handleSent = () => { showTapHint(); commitLog("sent", false); };
@@ -506,7 +510,7 @@ export default function App({ user, onSignOut }) {
     }
   };
 
-  const openSheet = (entry) => { clearTimeout(noteTimerRef.current); setNoteWindowId(null); setSheetEntry(entry); };
+  const openSheet = (entry) => { clearTimeout(noteTimerRef.current); setNoteWindowId(null); setFirstClimbHint(false); setSheetEntry(entry); };
 
   const saveDetail = async ({ name, grade, outcome, note, angles, styles, first_go }) => {
     setSheetSaving(true);
@@ -1133,25 +1137,42 @@ export default function App({ user, onSignOut }) {
         {sessionOnboardHint && (
           <div onClick={() => setSessionOnboardHint(false)} style={{ margin:"14px 24px 0", background:"#1a2a1a", border:"1px solid #2a4a2a", borderRadius:8, padding:"12px 16px", fontSize:12, color:"#aaa", lineHeight:1.8, cursor:"pointer" }}>
             {isGym
-              ? <>move the slider to set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:"#e07820", fontWeight:700 }}>PROJECT</span>, or <span style={{ color:"#4a9fd4", fontWeight:700 }}>REPEAT</span> to log your first climb</>
-              : <>add the climb name, set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:"#e07820", fontWeight:700 }}>PROJECT</span>, or <span style={{ color:"#4a9fd4", fontWeight:700 }}>REPEAT</span></>
+              ? <>move the slider to set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:COLOR_PROJECT, fontWeight:700 }}>PROJECT</span>, or <span style={{ color:COLOR_REPEAT, fontWeight:700 }}>REPEAT</span> to log your first climb</>
+              : <>add the climb name, set a grade, then hit <span style={{ color:"#4caf50", fontWeight:700 }}>SENT</span>, <span style={{ color:COLOR_PROJECT, fontWeight:700 }}>PROJECT</span>, or <span style={{ color:COLOR_REPEAT, fontWeight:700 }}>REPEAT</span></>
             }
             <div style={{ fontSize:12, color:"#5a9a5a", marginTop:6, letterSpacing:"0.06em" }}>tap to dismiss</div>
           </div>
         )}
 
+        {/* Step 1: Climb name — always glowing first */}
         <div style={{ padding:"28px 24px 0" }}>
-          <div style={{ fontSize:12, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:10 }}>
+          <div style={{ fontSize:12, color: isOutdoor ? "#4caf50" : "#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:10, transition:"color 0.2s" }}>
             {isOutdoor ? "climb name — required" : "climb name — optional"}
           </div>
-          <input style={S.nameInputBoxed} placeholder={isOutdoor ? "e.g. Midnight Lightning" : "e.g. Techno Surfing"} value={climbName} onChange={e => setClimbName(e.target.value)} />
+          <input
+            style={{ ...S.nameInputBoxed,
+              border: isOutdoor && !climbName.trim() ? "1px solid #4caf50" : isOutdoor && climbName.trim() ? "1px solid #2a2a2a" : "1px solid #2e2e2e",
+              boxShadow: isOutdoor && !climbName.trim() ? "0 0 0 3px rgba(76,175,80,0.10)" : "none",
+              transition:"border-color 0.2s, box-shadow 0.2s"
+            }}
+            placeholder={isGym ? "Plastic" : "e.g. Midnight Lightning"}
+            value={climbName}
+            onChange={e => setClimbName(e.target.value)}
+          />
         </div>
 
-        <div style={{ padding:"32px 0 0" }}>
-          <div style={{ fontSize:12, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14, paddingLeft:24 }}>grade</div>
-          <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} />
-        </div>
+        {/* Step 2: Grade — lights up once name entered (outdoor) or always (gym) */}
+        {(() => {
+          const gradeActive = isGym || climbName.trim().length > 0;
+          return (
+            <div style={{ padding:"32px 0 0", opacity: gradeActive ? 1 : 0.3, transition:"opacity 0.25s", pointerEvents: gradeActive ? "auto" : "none" }}>
+              <div style={{ fontSize:12, color: gradeActive && !selectedGrade ? "#4caf50" : "#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14, paddingLeft:24, transition:"color 0.2s" }}>grade</div>
+              <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} />
+            </div>
+          );
+        })()}
 
+        {/* Step 3: Buttons — light up once grade selected */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, padding:"28px 24px 0" }}>
           {logs.length > 0 && (
             <div style={{ gridColumn:"1/-1", fontSize:14, color:"#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8, textAlign:"center" }}>
@@ -1166,9 +1187,8 @@ export default function App({ user, onSignOut }) {
         {logs.length > 0 && (
           <div style={{ padding:"20px 24px 140px" }}>
             {firstClimbHint && (
-              <div style={{ background:"#1a2a1a", border:"1px solid #2a4a2a", borderRadius:6, padding:"10px 14px", marginBottom:12, fontSize:12, color:"#5aaa5a", letterSpacing:"0.04em", textAlign:"center", animation:"fadeHint 4s ease-out forwards" }}>
-                <style>{`@keyframes fadeHint { 0%{opacity:1} 70%{opacity:1} 100%{opacity:0} }`}</style>
-                tap a climb below to add details, angle & style
+              <div style={{ background:"#1a2a1a", border:"1px solid #2a4a2a", borderRadius:6, padding:"10px 14px", marginBottom:12, fontSize:13, color:"#5aaa5a", letterSpacing:"0.04em", textAlign:"center" }}>
+                tap a climb below to add details — angle, style & notes
               </div>
             )}
             {logs.slice(0,5).map(l => (
