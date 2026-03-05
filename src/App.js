@@ -1,6 +1,7 @@
 /* eslint-disable */
 import { useState, useRef, useEffect, useMemo } from "react";
 import { supabase } from "./supabase";
+import SummitLoader from "./SummitLoader";
 
 const BOULDER_GRADES = ["VB","V0","V1","V2","V3","V4","V5","V6","V7","V8","V9","V10","V11","V12","V13","V14","V15","V16"];
 const ROUTE_GRADES = ["5.6","5.7","5.8","5.9","5.10a","5.10b","5.10c","5.10d","5.11a","5.11b","5.11c","5.11d","5.12a","5.12b","5.12c","5.12d","5.13a","5.13b","5.13c","5.13d","5.14a","5.14b","5.14c","5.14d"];
@@ -120,7 +121,9 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
   const [angles, setAngles]   = useState(entry.angles || []);
   const [styles, setStyles]   = useState(entry.styles || []);
   const [firstGo, setFirstGo] = useState(entry.first_go || false);
+  const [pitches, setPitches] = useState(entry.pitches || null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const isOutdoorRoute = !entry.is_gym && discipline === "route";
   const grades = discipline === "route" ? ROUTE_GRADES : BOULDER_GRADES;
   const toggleAngle = (a) => setAngles(p => p.includes(a) ? p.filter(x=>x!==a) : [...p,a]);
   const toggleStyle = (s) => setStyles(p => p.includes(s) ? p.filter(x=>x!==s) : [...p,s]);
@@ -153,7 +156,7 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
               background: outcome===o ? (o==="sent"?COLOR_SENT:o==="project"?"#0a1e1c":"#061828") : "#161616",
               color: outcome===o ? (o==="sent"?"#fff":o==="project"?COLOR_PROJECT:COLOR_REPEAT) : "#444",
               border: outcome===o ? (o==="sent"?`1px solid ${COLOR_SENT}`:o==="project"?`1px solid ${COLOR_PROJECT}`:`1px solid ${COLOR_REPEAT}`) : "1px solid #1e1e1e",
-            }}>{o.toUpperCase()}</button>
+            }}>{o === "sent" ? "SEND" : o.toUpperCase()}</button>
           ))}
         </div>
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:20 }}>
@@ -199,9 +202,25 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
           <div style={S.tagLabel}>note</div>
           <textarea style={S.noteInput} placeholder="what clicked, what to try next..." value={note} onChange={e=>setNote(e.target.value)} rows={3} />
         </div>
+        {isOutdoorRoute && (
+          <div style={S.tagSection}>
+            <div style={S.tagLabel}>pitches</div>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              {[1,2,3,4,5,6,7,8,10,12,15,20].map(n => (
+                <button key={n} onClick={() => setPitches(pitches===n ? null : n)} style={{
+                  padding:"7px 14px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
+                  fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s", flexShrink:0,
+                  background: pitches===n ? "#f0ede8" : "#1e1e1e",
+                  color: pitches===n ? "#0e0e0e" : "#888"
+                }}>{n}</button>
+              ))}
+            </div>
+            {pitches && <div style={{ fontSize:12, color:"#888", marginTop:8 }}>{pitches} {pitches===1?"pitch":"pitches"} selected · tap to deselect</div>}
+          </div>
+        )}
         <div style={S.sheetBtns}>
           <button style={{ ...S.btnSecondary, color:"#c0392b", borderColor:"#2a1515" }} onClick={() => setConfirmDelete(true)}>delete</button>
-          <button style={{ ...S.btnPrimary, flex:2, opacity: saving ? 0.6 : 1 }} onClick={() => onSave({ name: name.trim()||null, grade, outcome, note, angles, styles, first_go: outcome==="sent" ? firstGo : false })} disabled={saving}>
+          <button style={{ ...S.btnPrimary, flex:2, opacity: saving ? 0.6 : 1 }} onClick={() => onSave({ name: name.trim()||null, grade, outcome, note, angles, styles, first_go: outcome==="sent" ? firstGo : false, pitches: isOutdoorRoute ? pitches : null })} disabled={saving}>
             {saving ? "saving..." : "save"}
           </button>
         </div>
@@ -259,6 +278,7 @@ function LogDetailRow({ log, onTap }) {
         <span style={S.detailGrade}>{log.grade}</span>
       </div>
       {hasTags && <div style={S.tagPills}>{[...(log.angles||[]),...(log.styles||[])].map(t => <span key={t} style={S.pill}>{t}</span>)}</div>}
+      {log.pitches && <div style={S.tagPills}><span style={{...S.pill, color:"#f0ede8", background:"#2a2a2a"}}>{log.pitches}p</span></div>}
       {log.note && <div style={S.noteChip}>✎ {log.note}</div>}
       {!hasTags && !log.note && !log.first_go && <div style={S.addChipDetail}>+ add details</div>}
     </div>
@@ -547,10 +567,10 @@ export default function App({ user, onSignOut }) {
 
   const openSheet = (entry) => { clearTimeout(noteTimerRef.current); setNoteWindowId(null); setFirstClimbHint(false); setSheetEntry(entry); };
 
-  const saveDetail = async ({ name, grade, outcome, note, angles, styles, first_go }) => {
+  const saveDetail = async ({ name, grade, outcome, note, angles, styles, first_go, pitches }) => {
     setSheetSaving(true);
     const disc = discipline || (viewingSession?.discipline) || "boulder";
-    const updates = { name: name||null, grade, grade_sort: gradeSort(grade, disc), outcome, note, angles, styles, first_go };
+    const updates = { name: name||null, grade, grade_sort: gradeSort(grade, disc), outcome, note, angles, styles, first_go, pitches: pitches||null };
     const updateLog = l => l.id===sheetEntry.id ? {...l,...updates} : l;
     setLogs(prev => prev.map(updateLog));
     setAllClimbs(prev => prev.map(updateLog));
@@ -743,19 +763,7 @@ export default function App({ user, onSignOut }) {
   );
 
   // ── LOADING ──────────────────────────────────────────────────────────────────
-  if (loadingSessions) {
-    return (
-      <div style={{ fontFamily:"'DM Mono','Courier New',monospace", background:"#0e0e0e", minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", maxWidth:390, margin:"0 auto" }}>
-        <div style={{ fontSize:28, fontWeight:700, letterSpacing:"0.15em", color:"#f0ede8", marginBottom:24 }}>SUMMIT</div>
-        <div style={{ display:"flex", gap:6 }}>
-          {[0,1,2].map(i => (
-            <div key={i} style={{ width:6, height:6, borderRadius:"50%", background:"#4caf50", animation:`dotPulse 1.2s ease-in-out ${i*0.2}s infinite` }} />
-          ))}
-        </div>
-        <style>{`@keyframes dotPulse { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }`}</style>
-      </div>
-    );
-  }
+  if (loadingSessions) return <SummitLoader />;
 
   // ── HOME tab ─────────────────────────────────────────────────────────────────
   if (screen === "home") {
@@ -793,7 +801,7 @@ export default function App({ user, onSignOut }) {
                   <div style={{ fontSize:11, letterSpacing:"0.15em", marginBottom:6, color:"#888" }}>LAST SESSION</div>
                   <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{latestSession.location}</div>
                   <div style={{ fontSize:14, color:"#ccc", marginTop:3, fontWeight:600 }}>{new Date(latestSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
-                  <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>{latestSession.discipline} · {(latestSession.logs||[]).filter(l=>l.outcome==="sent").length} sent · {(latestSession.logs||[]).length} climbs</div>
+                  <div style={{ fontSize:13, color:"#aaa", marginTop:3 }}>{latestSession.discipline} · {(latestSession.logs||[]).filter(l=>l.outcome==="sent").length} send · {(latestSession.logs||[]).length} climbs</div>
                 </div>
                 <div style={{ fontSize:22, color:"#444", alignSelf:"center" }}>›</div>
               </div>
@@ -810,7 +818,7 @@ export default function App({ user, onSignOut }) {
                 <div key={s.id} style={S.sessionCard}>
                   <div style={{ flex:1 }} onClick={() => { setViewingSession(s); setScreen("sessionDetail"); }}>
                     <div style={S.sessionCardLocation}>{s.location}</div>
-                    <div style={S.sessionCardMeta}>{s.discipline} · {(s.logs||[]).filter(l=>l.outcome==="sent").length} sent · {(s.logs||[]).length} climbs</div>
+                    <div style={S.sessionCardMeta}>{s.discipline} · {(s.logs||[]).filter(l=>l.outcome==="sent").length} send · {(s.logs||[]).length} climbs</div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                     <div style={S.sessionCardDate}>{new Date(s.started_at).toLocaleDateString([],{month:"short",day:"numeric"})}</div>
@@ -884,7 +892,7 @@ export default function App({ user, onSignOut }) {
                 <div key={s.id} style={S.sessionCard} onClick={() => { setViewingSession(s); setScreen("sessionDetail"); }}>
                   <div style={{ flex:1 }}>
                     <div style={S.sessionCardLocation}>{s.location}</div>
-                    <div style={S.sessionCardMeta}>{s.discipline} · {(s.logs||[]).filter(l=>l.outcome==="sent").length} sent · {(s.logs||[]).length} climbs</div>
+                    <div style={S.sessionCardMeta}>{s.discipline} · {(s.logs||[]).filter(l=>l.outcome==="sent").length} send · {(s.logs||[]).length} climbs</div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                     <div style={S.sessionCardDate}>{new Date(s.started_at).toLocaleDateString([],{month:"short",day:"numeric"})}</div>
@@ -974,7 +982,7 @@ export default function App({ user, onSignOut }) {
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:20 }}>
                 {[
                   { num: total,    label:"climbs" },
-                  { num: sent,     label:"sends" },
+                  { num: sent,     label:"send" },
                   { num: sessions, label:"sessions" },
                   { num: locations,label:"locations" },
                 ].map(({ num, label }) => (
@@ -1101,7 +1109,7 @@ export default function App({ user, onSignOut }) {
           <div style={S.pageSubtitle}>{new Date(s.started_at).toLocaleDateString([],{weekday:"long",month:"long",day:"numeric"})}</div>
           <div style={S.statsRow}>
             <div style={S.statBox}><div style={S.statNum}>{(s.logs||[]).length}</div><div style={S.statLabel}>climbs</div></div>
-            <div style={S.statBox}><div style={S.statNum}>{(s.logs||[]).filter(l=>l.outcome==="sent").length}</div><div style={S.statLabel}>sends</div></div>
+            <div style={S.statBox}><div style={S.statNum}>{(s.logs||[]).filter(l=>l.outcome==="sent").length}</div><div style={S.statLabel}>send</div></div>
             <div style={S.statBox}><div style={S.statNum}>{sf.length}</div><div style={S.statLabel}>⚡ first go</div></div>
           </div>
 
@@ -1148,7 +1156,7 @@ export default function App({ user, onSignOut }) {
         <ZapOverlay active={zapActive} /><Sheet />
         {justLogged && (
           <div style={{...S.flash, background: justLogged.first_go?"#1a1a00":justLogged.outcome==="sent"?"#0d1f0d":justLogged.outcome==="repeat"?"#061828":"#0a1e1c", color: justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT, border:`1px solid ${justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT}22`}}>
-            {justLogged.first_go?"⚡ flash!":justLogged.outcome==="sent"?"✓ sent":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
+            {justLogged.first_go?"⚡ flash!":justLogged.outcome==="sent"?"✓ send":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
           </div>
         )}
 
@@ -1161,7 +1169,7 @@ export default function App({ user, onSignOut }) {
             <div style={S.sessionLocation}>{activeSession?.location}</div>
             <div style={S.sessionMeta}>
               <span style={{color:"#ccc"}}>{logs.length} logged</span>
-              {sends.length > 0 && <span style={{color:COLOR_SENT}}> · {sends.length} sent</span>}
+              {sends.length > 0 && <span style={{color:COLOR_SENT}}> · {sends.length} send</span>}
               {repeats.length > 0 && <span style={{color:COLOR_REPEAT}}> · {repeats.length} ↺</span>}
               {flashes.length > 0 && <span style={{color:COLOR_FLASH}}> · {flashes.length} ⚡</span>}
             </div>
@@ -1261,7 +1269,7 @@ export default function App({ user, onSignOut }) {
           </div>
           <div style={S.statsRow}>
             <div style={S.statBox}><div style={S.statNum}>{vs.logs.length}</div><div style={S.statLabel}>climbs</div></div>
-            <div style={S.statBox}><div style={S.statNum}>{vSends.length}</div><div style={S.statLabel}>sends</div></div>
+            <div style={S.statBox}><div style={S.statNum}>{vSends.length}</div><div style={S.statLabel}>send</div></div>
             <div style={S.statBox}><div style={S.statNum}>{vFlashes.length}</div><div style={S.statLabel}>⚡ first go</div></div>
           </div>
           <div style={{ display:"flex", gap:8, marginBottom:28, flexWrap:"wrap" }}>
