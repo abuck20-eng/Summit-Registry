@@ -13,7 +13,7 @@ export default function SummitLoader() {
         @keyframes catBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
       `}</style>
 
-      <div style={{ fontSize:11, color:"#555", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:20 }}>loading</div>
+      <div style={{ fontSize:11, color:"#777", letterSpacing:"0.2em", textTransform:"uppercase", marginBottom:20 }}>loading</div>
 
       {/* Cat SVG — looking down at hands with colored dots */}
       <svg width="200" height="270" viewBox="0 0 200 270" fill="none"
