@@ -644,7 +644,10 @@ export default function App({ user, onSignOut }) {
   };
 
   const endSession = async () => {
-    if (logs.length === 0) {
+    if (!activeSession) return;
+    // Always use fresh climbs from allClimbs, not logs state (which may be stale if navigated away)
+    const sessionClimbs = allClimbs.filter(c => c.session_id === activeSession.id);
+    if (sessionClimbs.length === 0) {
       const confirmed = window.confirm("No climbs logged — end session anyway? It won't be saved.");
       if (!confirmed) return;
       await supabase.from('sessions').delete().eq('id', activeSession.id);
@@ -654,8 +657,9 @@ export default function App({ user, onSignOut }) {
     }
     clearTimeout(noteTimerRef.current); setNoteWindowId(null);
     await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
-    const done = {...activeSession, logs, ended_at: new Date().toISOString()};
+    const done = {...activeSession, logs: sessionClimbs, ended_at: new Date().toISOString()};
     setAllSessions(prev => prev.map(s => s.id===activeSession.id ? done : s));
+    setLogs(sessionClimbs);
     setActiveSession(null); setViewingSession(done); setScreen("summary");
   };
 
