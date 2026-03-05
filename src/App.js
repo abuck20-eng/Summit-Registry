@@ -80,7 +80,7 @@ function SentButton({ disabled, onSent, onFirstGo }) {
   };
   useEffect(() => () => clearTimeout(tapTimer.current), []);
   return (
-    <button onClick={handlePress} style={{ ...S.outcomeBtn, background:"#4caf50", color:"#fff", opacity: disabled ? 0.25 : 1, transition:"opacity 0.15s" }}>
+    <button onClick={handlePress} style={{ ...S.outcomeBtn, background:"#4caf50", color:"#fff", opacity: disabled ? 0.55 : 1, transition:"opacity 0.2s" }}>
       SENT
     </button>
   );
@@ -275,44 +275,70 @@ const COLOR_FLASH   = "#ffe44d";
 function OutcomeIcon({ outcome, firstGo, size = 26 }) {
   const r = size / 2;
   const bg = outcome === "sent" ? COLOR_SENT : outcome === "repeat" ? COLOR_REPEAT : COLOR_PROJECT;
+  const sw = size * 0.09; // black outline stroke width
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink:0 }}>
-      {/* Background circle */}
       <circle cx={r} cy={r} r={r} fill={bg} />
 
       {outcome === "sent" && !firstGo && (
-        // Solid filled circle — already drawn above, nothing extra needed
-        <circle cx={r} cy={r} r={r*0.45} fill="#fff" opacity={0.25} />
+        // White "S" with black outline
+        <>
+          <text x={r} y={r * 1.42} textAnchor="middle" fontSize={size * 0.58} fontWeight="900"
+            fontFamily="'DM Mono','Courier New',monospace"
+            stroke="#000" strokeWidth={sw} strokeLinejoin="round" fill="#fff" paintOrder="stroke">S</text>
+        </>
       )}
 
       {outcome === "sent" && firstGo && (
-        // Flash bolt with black outline then yellow fill
+        // Flash bolt — black outline then yellow
         <>
           <polygon points={`${size*0.58},${size*0.1} ${size*0.28},${size*0.52} ${size*0.48},${size*0.52} ${size*0.38},${size*0.9} ${size*0.72},${size*0.44} ${size*0.52},${size*0.44}`}
-            fill="none" stroke="#000" strokeWidth={size*0.08} strokeLinejoin="round" />
+            fill="none" stroke="#000" strokeWidth={size*0.09} strokeLinejoin="round" />
           <polygon points={`${size*0.58},${size*0.1} ${size*0.28},${size*0.52} ${size*0.48},${size*0.52} ${size*0.38},${size*0.9} ${size*0.72},${size*0.44} ${size*0.52},${size*0.44}`}
             fill={COLOR_FLASH} />
         </>
       )}
 
       {outcome === "repeat" && (
-        // Circular arrows ↺
+        // Circular arrow with black outline
         <>
           <path d={`M${size*0.62},${size*0.28} A${size*0.22},${size*0.22} 0 1 0 ${size*0.64},${size*0.62}`}
-            fill="none" stroke="#fff" strokeWidth={size*0.11} strokeLinecap="round" />
-          <polygon points={`${size*0.56},${size*0.56} ${size*0.72},${size*0.60} ${size*0.64},${size*0.74}`} fill="#fff" />
+            fill="none" stroke="#000" strokeWidth={size*0.14} strokeLinecap="round" />
+          <path d={`M${size*0.62},${size*0.28} A${size*0.22},${size*0.22} 0 1 0 ${size*0.64},${size*0.62}`}
+            fill="none" stroke="#fff" strokeWidth={size*0.10} strokeLinecap="round" />
+          <polygon points={`${size*0.56},${size*0.55} ${size*0.73},${size*0.59} ${size*0.64},${size*0.74}`}
+            fill="#000" />
+          <polygon points={`${size*0.575},${size*0.565} ${size*0.71},${size*0.595} ${size*0.645},${size*0.725}`}
+            fill="#fff" />
         </>
       )}
 
       {outcome === "project" && (
-        // Hammer on filled circle
+        // Ouroboros — snake eating its own tail, black outline
         <>
-          {/* handle */}
-          <line x1={size*0.54} y1={size*0.52} x2={size*0.76} y2={size*0.78}
-            stroke="#fff" strokeWidth={size*0.10} strokeLinecap="round" />
-          {/* head — rectangle rotated */}
-          <rect x={size*0.22} y={size*0.30} width={size*0.40} height={size*0.22} rx={size*0.04}
-            fill="#fff" transform={`rotate(-40 ${size*0.42} ${size*0.41})`} />
+          {/* snake body ring — black outline */}
+          <circle cx={r} cy={r} r={r*0.55} fill="none" stroke="#000" strokeWidth={size*0.16} />
+          {/* snake body ring — white fill */}
+          <circle cx={r} cy={r} r={r*0.55} fill="none" stroke="#fff" strokeWidth={size*0.11} />
+          {/* head at top-right, mouth open eating tail */}
+          <circle cx={size*0.74} cy={size*0.26} r={size*0.13} fill="#000" />
+          <circle cx={size*0.74} cy={size*0.26} r={size*0.10} fill="#fff" />
+          {/* eye */}
+          <circle cx={size*0.77} cy={size*0.23} r={size*0.03} fill="#000" />
+          {/* open jaw — two short lines */}
+          <line x1={size*0.68} y1={size*0.20} x2={size*0.62} y2={size*0.16}
+            stroke="#000" strokeWidth={size*0.055} strokeLinecap="round" />
+          <line x1={size*0.68} y1={size*0.20} x2={size*0.62} y2={size*0.16}
+            stroke="#fff" strokeWidth={size*0.035} strokeLinecap="round" />
+          <line x1={size*0.70} y1={size*0.30} x2={size*0.63} y2={size*0.34}
+            stroke="#000" strokeWidth={size*0.055} strokeLinecap="round" />
+          <line x1={size*0.70} y1={size*0.30} x2={size*0.63} y2={size*0.34}
+            stroke="#fff" strokeWidth={size*0.035} strokeLinecap="round" />
+          {/* tail tip between jaws */}
+          <line x1={size*0.60} y1={size*0.18} x2={size*0.55} y2={size*0.22}
+            stroke="#000" strokeWidth={size*0.08} strokeLinecap="round" />
+          <line x1={size*0.60} y1={size*0.18} x2={size*0.55} y2={size*0.22}
+            stroke="#fff" strokeWidth={size*0.05} strokeLinecap="round" />
         </>
       )}
     </svg>
@@ -1165,7 +1191,7 @@ export default function App({ user, onSignOut }) {
         {(() => {
           const gradeActive = isGym || climbName.trim().length > 0;
           return (
-            <div style={{ padding:"32px 0 0", opacity: gradeActive ? 1 : 0.3, transition:"opacity 0.25s", pointerEvents: gradeActive ? "auto" : "none" }}>
+            <div style={{ padding:"32px 0 0", opacity: gradeActive ? 1 : 0.55, transition:"opacity 0.25s", pointerEvents: gradeActive ? "auto" : "none" }}>
               <div style={{ fontSize:12, color: gradeActive && !selectedGrade ? "#4caf50" : "#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:14, paddingLeft:24, transition:"color 0.2s" }}>grade</div>
               <GradeSlider grades={grades} value={selectedGrade} onChange={setSelectedGrade} />
             </div>
@@ -1180,8 +1206,8 @@ export default function App({ user, onSignOut }) {
             </div>
           )}
           <SentButton disabled={!canLog} onSent={handleSent} onFirstGo={handleFirstGo} />
-          <button style={{...S.outcomeBtn, background:"#0a1e1c", color:canLog?COLOR_PROJECT:"#0a1a18", border:`1px solid ${canLog?COLOR_PROJECT:"#061210"}`, transition:"all 0.15s"}} onClick={() => { if(canLog){showTapHint(); commitLog("project");} }}>PROJECT</button>
-          <button style={{...S.outcomeBtn, background:"#06111a", color:canLog?COLOR_REPEAT:"#0a2030", border:`1px solid ${canLog?COLOR_REPEAT:"#061018"}`, transition:"all 0.15s"}} onClick={() => { if(canLog){showTapHint(); commitLog("repeat");} }}>REPEAT</button>
+          <button style={{...S.outcomeBtn, background:"#0a1e1c", color:canLog?COLOR_PROJECT:"#1a6058", border:`1px solid ${canLog?COLOR_PROJECT:"#1a5048"}`, transition:"all 0.2s", opacity: canLog ? 1 : 0.55}} onClick={() => { if(canLog){showTapHint(); commitLog("project");} }}>PROJECT</button>
+          <button style={{...S.outcomeBtn, background:"#06111a", color:canLog?COLOR_REPEAT:"#1a4a6a", border:`1px solid ${canLog?COLOR_REPEAT:"#1a3a58"}`, transition:"all 0.2s", opacity: canLog ? 1 : 0.55}} onClick={() => { if(canLog){showTapHint(); commitLog("repeat");} }}>REPEAT</button>
         </div>
 
         {logs.length > 0 && (
@@ -1277,7 +1303,7 @@ const S = {
   floatingBtn:{ position:"fixed", bottom:72, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, padding:"0 24px 12px", background:"linear-gradient(transparent, #0e0e0e 35%)", boxSizing:"border-box", zIndex:40 },
   startBtn:{ width:"100%", padding:20, background:"#f0ede8", color:"#0e0e0e", border:"none", borderRadius:4, fontSize:14, fontWeight:700, letterSpacing:"0.15em", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"block" },
   signOutBtn:{ width:"100%", padding:8, background:"transparent", color:"#888", border:"none", fontSize:13, cursor:"pointer", fontFamily:"'DM Mono',monospace", letterSpacing:"0.1em", marginTop:6 },
-  backBtn:{ background:"none", border:"none", color:"#aaa", fontSize:22, cursor:"pointer", padding:0, fontFamily:"'DM Mono',monospace", alignSelf:"flex-start" },
+  backBtn:{ background:"none", border:"1px solid #3a3a3a", borderRadius:6, color:"#ccc", fontSize:18, cursor:"pointer", padding:"6px 12px", fontFamily:"'DM Mono',monospace", alignSelf:"flex-start", display:"inline-flex", alignItems:"center", gap:4, letterSpacing:0 },
   pageTitle:{ fontSize:26, fontWeight:700, letterSpacing:"0.04em", marginBottom:4 },
   pageSubtitle:{ fontSize:15, color:"#bbb", letterSpacing:"0.05em", marginBottom:28 },
   statsRow:{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:2, marginBottom:20 },
