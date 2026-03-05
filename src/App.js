@@ -275,17 +275,23 @@ const COLOR_FLASH   = "#ffe44d";
 function OutcomeIcon({ outcome, firstGo, size = 26 }) {
   const r = size / 2;
   const bg = outcome === "sent" ? COLOR_SENT : outcome === "repeat" ? COLOR_REPEAT : COLOR_PROJECT;
-  const sw = size * 0.09; // black outline stroke width
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink:0 }}>
       <circle cx={r} cy={r} r={r} fill={bg} />
 
       {outcome === "sent" && !firstGo && (
-        // White "S" with black outline
+        // White envelope, black outline
         <>
-          <text x={r} y={r * 1.42} textAnchor="middle" fontSize={size * 0.58} fontWeight="900"
-            fontFamily="'DM Mono','Courier New',monospace"
-            stroke="#000" strokeWidth={sw} strokeLinejoin="round" fill="#fff" paintOrder="stroke">S</text>
+          {/* envelope body */}
+          <rect x={size*0.18} y={size*0.30} width={size*0.64} height={size*0.42} rx={size*0.04}
+            fill="#000" />
+          <rect x={size*0.20} y={size*0.32} width={size*0.60} height={size*0.38} rx={size*0.03}
+            fill="#fff" />
+          {/* envelope flap V */}
+          <polyline points={`${size*0.20},${size*0.33} ${size*0.50},${size*0.56} ${size*0.80},${size*0.33}`}
+            fill="none" stroke="#000" strokeWidth={size*0.07} strokeLinejoin="round" />
+          <polyline points={`${size*0.20},${size*0.33} ${size*0.50},${size*0.56} ${size*0.80},${size*0.33}`}
+            fill="none" stroke="#fff" strokeWidth={size*0.045} strokeLinejoin="round" />
         </>
       )}
 
@@ -300,45 +306,48 @@ function OutcomeIcon({ outcome, firstGo, size = 26 }) {
       )}
 
       {outcome === "repeat" && (
-        // Circular arrow with black outline
-        <>
-          <path d={`M${size*0.62},${size*0.28} A${size*0.22},${size*0.22} 0 1 0 ${size*0.64},${size*0.62}`}
-            fill="none" stroke="#000" strokeWidth={size*0.14} strokeLinecap="round" />
-          <path d={`M${size*0.62},${size*0.28} A${size*0.22},${size*0.22} 0 1 0 ${size*0.64},${size*0.62}`}
-            fill="none" stroke="#fff" strokeWidth={size*0.10} strokeLinecap="round" />
-          <polygon points={`${size*0.56},${size*0.55} ${size*0.73},${size*0.59} ${size*0.64},${size*0.74}`}
-            fill="#000" />
-          <polygon points={`${size*0.575},${size*0.565} ${size*0.71},${size*0.595} ${size*0.645},${size*0.725}`}
-            fill="#fff" />
-        </>
-      )}
-
-      {outcome === "project" && (
         // Ouroboros — snake eating its own tail, black outline
         <>
-          {/* snake body ring — black outline */}
           <circle cx={r} cy={r} r={r*0.55} fill="none" stroke="#000" strokeWidth={size*0.16} />
-          {/* snake body ring — white fill */}
           <circle cx={r} cy={r} r={r*0.55} fill="none" stroke="#fff" strokeWidth={size*0.11} />
-          {/* head at top-right, mouth open eating tail */}
+          {/* head top-right */}
           <circle cx={size*0.74} cy={size*0.26} r={size*0.13} fill="#000" />
           <circle cx={size*0.74} cy={size*0.26} r={size*0.10} fill="#fff" />
           {/* eye */}
           <circle cx={size*0.77} cy={size*0.23} r={size*0.03} fill="#000" />
-          {/* open jaw — two short lines */}
-          <line x1={size*0.68} y1={size*0.20} x2={size*0.62} y2={size*0.16}
-            stroke="#000" strokeWidth={size*0.055} strokeLinecap="round" />
-          <line x1={size*0.68} y1={size*0.20} x2={size*0.62} y2={size*0.16}
-            stroke="#fff" strokeWidth={size*0.035} strokeLinecap="round" />
-          <line x1={size*0.70} y1={size*0.30} x2={size*0.63} y2={size*0.34}
-            stroke="#000" strokeWidth={size*0.055} strokeLinecap="round" />
-          <line x1={size*0.70} y1={size*0.30} x2={size*0.63} y2={size*0.34}
-            stroke="#fff" strokeWidth={size*0.035} strokeLinecap="round" />
+          {/* upper jaw */}
+          <line x1={size*0.68} y1={size*0.20} x2={size*0.61} y2={size*0.15}
+            stroke="#000" strokeWidth={size*0.06} strokeLinecap="round" />
+          <line x1={size*0.68} y1={size*0.20} x2={size*0.61} y2={size*0.15}
+            stroke="#fff" strokeWidth={size*0.038} strokeLinecap="round" />
+          {/* lower jaw */}
+          <line x1={size*0.70} y1={size*0.30} x2={size*0.63} y2={size*0.35}
+            stroke="#000" strokeWidth={size*0.06} strokeLinecap="round" />
+          <line x1={size*0.70} y1={size*0.30} x2={size*0.63} y2={size*0.35}
+            stroke="#fff" strokeWidth={size*0.038} strokeLinecap="round" />
           {/* tail tip between jaws */}
-          <line x1={size*0.60} y1={size*0.18} x2={size*0.55} y2={size*0.22}
-            stroke="#000" strokeWidth={size*0.08} strokeLinecap="round" />
-          <line x1={size*0.60} y1={size*0.18} x2={size*0.55} y2={size*0.22}
-            stroke="#fff" strokeWidth={size*0.05} strokeLinecap="round" />
+          <line x1={size*0.60} y1={size*0.18} x2={size*0.54} y2={size*0.23}
+            stroke="#000" strokeWidth={size*0.09} strokeLinecap="round" />
+          <line x1={size*0.60} y1={size*0.18} x2={size*0.54} y2={size*0.23}
+            stroke="#fff" strokeWidth={size*0.055} strokeLinecap="round" />
+        </>
+      )}
+
+      {outcome === "project" && (
+        // Hammer — black outline on white
+        <>
+          {/* handle outline */}
+          <line x1={size*0.54} y1={size*0.52} x2={size*0.78} y2={size*0.80}
+            stroke="#000" strokeWidth={size*0.16} strokeLinecap="round" />
+          {/* handle fill */}
+          <line x1={size*0.54} y1={size*0.52} x2={size*0.78} y2={size*0.80}
+            stroke="#fff" strokeWidth={size*0.10} strokeLinecap="round" />
+          {/* head outline */}
+          <rect x={size*0.20} y={size*0.28} width={size*0.42} height={size*0.24} rx={size*0.04}
+            fill="#000" transform={`rotate(-40 ${size*0.41} ${size*0.40})`} />
+          {/* head fill */}
+          <rect x={size*0.22} y={size*0.30} width={size*0.38} height={size*0.20} rx={size*0.03}
+            fill="#fff" transform={`rotate(-40 ${size*0.41} ${size*0.40})`} />
         </>
       )}
     </svg>
