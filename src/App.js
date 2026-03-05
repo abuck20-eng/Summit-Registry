@@ -454,7 +454,6 @@ export default function App({ user, onSignOut }) {
   const [lookupQuery, setLookupQuery] = useState("");
   const [lookupMode, setLookupMode] = useState("sessions"); // "sessions" | "climbs"
   const [showAllSessions, setShowAllSessions] = useState(false);
-  const [dupeSendPrompt, setDupeSendPrompt] = useState(null);
   const [confirmEndEmpty, setConfirmEndEmpty] = useState(false);
 
   const grades = discipline === "route" ? ROUTE_GRADES : BOULDER_GRADES;
@@ -521,27 +520,6 @@ export default function App({ user, onSignOut }) {
   const commitLog = async (outcome, firstGo = false) => {
     if (!canLog || !activeSession) return;
     const climbData = { name: climbName.trim()||null, grade: selectedGrade, outcome, first_go: firstGo, angles:[], styles:[], note:"", is_gym: isGym };
-
-    // Duplicate send check — outdoor named climbs only
-    if (outcome === "sent" && climbData.name && !isGym) {
-      const location = activeSession.location || "";
-      const key = climbData.name.trim().toLowerCase() + "|" + climbData.grade + "|" + location.trim().toLowerCase();
-      const priorSend = allClimbs.find(c =>
-        c.outcome === "sent" && c.name &&
-        (c.name.trim().toLowerCase() + "|" + c.grade + "|" + ((allSessions.find(s=>s.id===c.session_id)?.location)||"").trim().toLowerCase()) === key
-      );
-      if (priorSend) {
-        setDupeSendPrompt(() => ({ climbData, resolve: (useOutcome) => {
-          setDupeSendPrompt(null);
-          _doCommit({ ...climbData, outcome: useOutcome }, firstGo);
-        }}));
-        return;
-      }
-    }
-    _doCommit(climbData, firstGo);
-  };
-
-  const _doCommit = async (climbData, firstGo = false) => {
     const tempId = `temp-${Date.now()}`;
     const tempEntry = { id: tempId, ...climbData, logged_at: new Date().toISOString() };
     setLogs(prev => [tempEntry, ...prev]);
@@ -838,24 +816,6 @@ export default function App({ user, onSignOut }) {
   );
 
   // Inline JSX helpers (not components — avoids React reconciliation issues)
-  const dupeSendOverlay = dupeSendPrompt ? (
-    <div style={S.overlay} onClick={() => setDupeSendPrompt(null)}>
-      <div style={S.sheet} onClick={e => e.stopPropagation()}>
-        <div style={S.sheetHandle} />
-        <div style={{ textAlign:"center", padding:"8px 0 4px" }}>
-          <div style={{ fontSize:28, marginBottom:12 }}>🐍</div>
-          <div style={{ fontSize:17, fontWeight:700, marginBottom:8 }}>you've already sent {dupeSendPrompt.climbData.name}</div>
-          <div style={{ fontSize:14, color:"#aaa", marginBottom:28, lineHeight:1.6 }}>
-            {dupeSendPrompt.climbData.grade} · {activeSession?.location}<br/>is this a repeat, or a second send?
-          </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-            <button style={{ ...S.btnSecondary, color:COLOR_REPEAT, borderColor:COLOR_REPEAT }} onClick={() => dupeSendPrompt.resolve("repeat")}>log as repeat</button>
-            <button style={{ ...S.btnPrimary, background:COLOR_SENT }} onClick={() => dupeSendPrompt.resolve("sent")}>second send</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  ) : null;
 
   const confirmEndOverlay = confirmEndEmpty ? (
     <div style={S.overlay} onClick={() => setConfirmEndEmpty(false)}>
@@ -1343,7 +1303,7 @@ export default function App({ user, onSignOut }) {
 
     return (
       <div style={S.app}>
-        <ZapOverlay active={zapActive} /><Sheet />{dupeSendOverlay}{confirmEndOverlay}
+        <ZapOverlay active={zapActive} /><Sheet />{confirmEndOverlay}
         {justLogged && (
           <div style={{...S.flash, background: justLogged.first_go?"#1a1a00":justLogged.outcome==="sent"?"#0d1f0d":justLogged.outcome==="repeat"?"#061828":"#0a1e1c", color: justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT, border:`1px solid ${justLogged.first_go?COLOR_FLASH:justLogged.outcome==="sent"?COLOR_SENT:justLogged.outcome==="repeat"?COLOR_REPEAT:COLOR_PROJECT}22`}}>
             {justLogged.first_go?"⚡ flash!":justLogged.outcome==="sent"?"✓ send":justLogged.outcome==="repeat"?"↺ repeat":"◎ project"} {justLogged.grade}
