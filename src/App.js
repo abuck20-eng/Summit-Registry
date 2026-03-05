@@ -456,6 +456,8 @@ export default function App({ user, onSignOut }) {
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [confirmEndEmpty, setConfirmEndEmpty] = useState(false);
 
+  const noteTimerRef = useRef(null);
+
   const grades = discipline === "route" ? ROUTE_GRADES : BOULDER_GRADES;
   const isOutdoor = environment === "outdoor";
   const isGym = environment === "gym";
