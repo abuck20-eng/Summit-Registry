@@ -388,7 +388,7 @@ function BarChart({ data, color = "#f0ede8", unit = "" }) {
           <div key={i} onClick={() => setTapped(tapped===i ? null : i)}
             style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, flex:1, cursor:"pointer", position:"relative" }}>
             {tapped === i && (
-              <div style={{ position:"absolute", bottom:-28, left:"50%", transform:"translateX(-50%)", background:"#f0ede8", color:"#0e0e0e", fontSize:10, fontWeight:700, borderRadius:3, padding:"2px 6px", whiteSpace:"nowrap", zIndex:10 }}>
+              <div style={{ position:"absolute", top:-26, left:"50%", transform:"translateX(-50%)", background:"#f0ede8", color:"#0e0e0e", fontSize:10, fontWeight:700, borderRadius:3, padding:"2px 6px", whiteSpace:"nowrap", zIndex:10 }}>
                 {d.value}{unit}
               </div>
             )}
@@ -741,6 +741,7 @@ export default function App({ user, onSignOut }) {
   // ── Insights data ───────────────────────────────────────────────────────────
   const [insightsDiscipline, setInsightsDiscipline] = useState("boulder");
   const [showBestExplain, setShowBestExplain] = useState(false);
+  const [climbsEnvFilter, setClimbsEnvFilter] = useState("all"); // "all" | "outdoor" | "gym"
 
   const insightsData = useMemo(() => {
     const compute = (disc) => {
@@ -791,7 +792,79 @@ export default function App({ user, onSignOut }) {
       const outdoorCount = discClimbs.filter(c => !c.is_gym).length;
       const gymCount = discClimbs.filter(c => c.is_gym).length;
 
-      return { total, sent: sent.length, flashed: flashed.length, sessions: discSessions.length, locations, gradeCounts, flashByGrade, topLocs, bestConditions, outdoorCount, gymCount };
+      // Open projects for this discipline (outdoor only, distinct fingerprints)
+      const openProjectsDisc = openProjects.filter(p => gradeList.includes(p.grade));
+
+      // Sessions per month (last 6 months)
+      const now = new Date();
+      const sessionsPerMonth = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const label = d.toLocaleDateString([], { month: "short" });
+        const count = discSessions.filter(s => {
+          const sd = new Date(s.started_at);
+          return sd.getFullYear() === d.getFullYear() && sd.getMonth() === d.getMonth();
+        }).length;
+        sessionsPerMonth.push({ label, value: count });
+      }
+      const hasMonthData = sessionsPerMonth.some(m => m.value > 0);
+
+      // Attempt-to-send ratio on outdoor projects (PROJECT logs before first SEND per fingerprint)
+      let avgAttempts = null;
+      const outdoorSessions = Object.fromEntries(allSessions.map(s => [s.id, s]));
+      const projectFingerprints = {};
+      allClimbs.filter(c => gradeList.includes(c.grade) && !c.is_gym && c.name).forEach(c => {
+        const sess = outdoorSessions[c.session_id];
+        if (!sess) return;
+        const key = `${c.name.trim().toLowerCase()}|${c.grade}|${(sess.location||"").trim().toLowerCase()}`;
+        if (!projectFingerprints[key]) projectFingerprints[key] = { projects: 0, sent: false };
+        if (c.outcome === "project") projectFingerprints[key].projects++;
+        if (c.outcome === "sent") projectFingerprints[key].sent = true;
+      });
+      const sentProjects = Object.values(projectFingerprints).filter(p => p.sent && p.projects > 0);
+      if (sentProjects.length >= 2) {
+        avgAttempts = Math.round(sentProjects.reduce((sum, p) => sum + p.projects, 0) / sentProjects.length * 10) / 10;
+      }
+
+      // Streak — consecutive weeks with at least one session
+      let streak = 0;
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      const sessionDates = discSessions.map(s => new Date(s.started_at));
+      let checkDate = new Date(now);
+      checkDate.setHours(0,0,0,0);
+      const startOfWeek = (d) => { const c = new Date(d); c.setDate(c.getDate() - c.getDay()); c.setHours(0,0,0,0); return c; };
+      let weekStart = startOfWeek(checkDate);
+      for (let w = 0; w < 52; w++) {
+        const weekEnd = new Date(weekStart.getTime() + weekMs);
+        const hasSession = sessionDates.some(d => d >= weekStart && d < weekEnd);
+        if (hasSession) { streak++; weekStart = new Date(weekStart.getTime() - weekMs); }
+        else if (w === 0) { weekStart = new Date(weekStart.getTime() - weekMs); } // allow current incomplete week
+        else break;
+      }
+
+      // Climbs per session — all outcomes, filterable by env (computed for all three views)
+      const outdoorSess = discSessions.filter(s => s.environment === "outdoor");
+      const gymSess = discSessions.filter(s => s.environment === "gym");
+      const climbsAll = discClimbs.length;
+      const climbsOutdoor = discClimbs.filter(c => !c.is_gym).length;
+      const climbsGym = discClimbs.filter(c => c.is_gym).length;
+      const climbsPerSessionAll = discSessions.length >= 2 ? Math.round((climbsAll / discSessions.length) * 10) / 10 : null;
+      const climbsPerSessionOutdoor = outdoorSess.length >= 2 ? Math.round((climbsOutdoor / outdoorSess.length) * 10) / 10 : null;
+      const climbsPerSessionGym = gymSess.length >= 2 ? Math.round((climbsGym / gymSess.length) * 10) / 10 : null;
+
+      // Best climbing day — total climbs logged per day of week across all sessions
+      const dayClimbs = {};
+      discSessions.forEach(s => {
+        const day = new Date(s.started_at).toLocaleDateString([], { weekday: "short" });
+        const count = (s.logs || []).filter(l => gradeList.includes(l.grade)).length;
+        dayClimbs[day] = (dayClimbs[day] || 0) + count;
+      });
+      const bestDay = Object.entries(dayClimbs).sort((a,b) => b[1]-a[1])[0] || null;
+      const dayChartData = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+        .filter(d => dayClimbs[d])
+        .map(d => ({ label: d, value: dayClimbs[d] }));
+
+      return { total, sent: sent.length, flashed: flashed.length, sessions: discSessions.length, locations, gradeCounts, flashByGrade, topLocs, bestConditions, outdoorCount, gymCount, openProjectCount: openProjectsDisc.length, sessionsPerMonth, hasMonthData, avgAttempts, streak, climbsPerSessionAll, climbsPerSessionOutdoor, climbsPerSessionGym, bestDay, dayChartData };
     };
 
     return { boulder: compute("boulder"), route: compute("route") };
@@ -1077,7 +1150,7 @@ export default function App({ user, onSignOut }) {
   // ── INSIGHTS tab ─────────────────────────────────────────────────────────────
   if (screen === "insights") {
     const d = insightsData[insightsDiscipline];
-    const { total, sent, flashed, sessions, locations, gradeCounts, flashByGrade, topLocs, bestConditions, outdoorCount, gymCount } = d;
+    const { total, sent, flashed, sessions, locations, gradeCounts, flashByGrade, topLocs, bestConditions, outdoorCount, gymCount, openProjectCount, sessionsPerMonth, hasMonthData, avgAttempts, streak, climbsPerSessionAll, climbsPerSessionOutdoor, climbsPerSessionGym, bestDay, dayChartData } = d;
     const hasData = total >= 1;
     const hasGradeData = gradeCounts.length >= 3;
     const hasBestConditions = !!bestConditions;
@@ -1127,7 +1200,7 @@ export default function App({ user, onSignOut }) {
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:20 }}>
                 {[
                   { num: total,    label:"climbs" },
-                  { num: sent,     label:"send" },
+                  { num: sent,     label:"sends" },
                   { num: sessions, label:"sessions" },
                   { num: locations,label:"locations" },
                 ].map(({ num, label }) => (
@@ -1137,6 +1210,19 @@ export default function App({ user, onSignOut }) {
                   </div>
                 ))}
               </div>
+              {openProjectCount > 0 && (
+                <div style={{ background:"#150f00", border:"1px solid #3a2010", borderRadius:8, padding:"14px 20px", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"space-between", cursor:"pointer" }}
+                  onClick={() => { setLookupMode("projects"); setTab("lookup"); setScreen("lookup"); }}>
+                  <div>
+                    <div style={{ fontSize:12, color:COLOR_PROJECT, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>open projects</div>
+                    <div style={{ fontSize:13, color:"#aaa" }}>outdoor · distinct name + grade + area</div>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={{ fontSize:30, fontWeight:700, color:COLOR_PROJECT }}>{openProjectCount}</div>
+                    <div style={{ fontSize:16, color:COLOR_PROJECT }}>›</div>
+                  </div>
+                </div>
+              )}
 
               {/* Sends by grade */}
               <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
@@ -1144,14 +1230,50 @@ export default function App({ user, onSignOut }) {
                 {hasGradeData ? (
                   <BarChart data={gradeCounts} color="#f0ede8" unit=" sends" />
                 ) : (
-                  <div style={{ fontSize:13, color:"#aaa", fontStyle:"italic" }}>log {Math.max(0, 3 - gradeCounts.length)} more sends across different grades to unlock</div>
+                  <div style={{ fontSize:13, color:"#555", fontStyle:"italic" }}>
+                    log {Math.max(0, 3 - gradeCounts.length)} more sends across different grades to unlock
+                    <div style={{ height:3, background:"#1e1e1e", borderRadius:2, marginTop:10 }}>
+                      <div style={{ width:`${Math.min(100,(gradeCounts.length/3)*100)}%`, height:"100%", background:"#333", borderRadius:2 }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Flash rate by grade */}
+              <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ fontSize:12, color: flashByGrade.length >= 2 ? "#ccc" : "#555", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>⚡ flash rate by grade</div>
+                {flashByGrade.length >= 2 ? (
+                  <>
+                    <BarChart data={flashByGrade} color="#c07820" unit="%" />
+                    <div style={{ fontSize:12, color:"#555", marginTop:8 }}>% of attempts flashed · min 2 per grade</div>
+                  </>
+                ) : (
+                  <div style={{ fontSize:13, color:"#555", fontStyle:"italic" }}>
+                    log more climbs at the same grade to unlock
+                    <div style={{ height:3, background:"#1e1e1e", borderRadius:2, marginTop:10 }}>
+                      <div style={{ width:`${Math.min(100,(flashByGrade.length/2)*100)}%`, height:"100%", background:"#333", borderRadius:2 }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sessions per month + streak */}
+              <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:12 }}>
+                  <div style={{ fontSize:12, color: hasMonthData ? "#ccc" : "#555", letterSpacing:"0.12em", textTransform:"uppercase" }}>sessions per month</div>
+                  {streak > 1 && <div style={{ fontSize:12, color:"#4caf50", fontWeight:700 }}>🔥 {streak}wk streak</div>}
+                </div>
+                {hasMonthData ? (
+                  <BarChart data={sessionsPerMonth} color="#4a9fd4" unit="" />
+                ) : (
+                  <div style={{ fontSize:13, color:"#555", fontStyle:"italic" }}>log your first session to start tracking consistency</div>
                 )}
               </div>
 
               {/* Outdoor vs gym */}
-              {(outdoorCount > 0 || gymCount > 0) && (
-                <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
-                  <div style={{ fontSize:12, color:"#ccc", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>outdoor vs gym</div>
+              <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ fontSize:12, color: (outdoorCount > 0 || gymCount > 0) ? "#ccc" : "#555", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>outdoor vs gym</div>
+                {(outdoorCount > 0 || gymCount > 0) ? (
                   <div style={{ display:"flex", gap:10 }}>
                     <div style={{ flex: outdoorCount||1, background:"#1a3a1a", border:"1px solid #2a4a2a", borderRadius:6, padding:"10px 14px" }}>
                       <div style={{ fontSize:22, fontWeight:700, color:"#4caf50" }}>{outdoorCount}</div>
@@ -1162,29 +1284,61 @@ export default function App({ user, onSignOut }) {
                       <div style={{ fontSize:10, color:"#4a9fd4", letterSpacing:"0.1em", marginTop:2 }}>GYM</div>
                     </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div style={{ fontSize:13, color:"#555", fontStyle:"italic" }}>log both outdoor and gym sessions to compare</div>
+                )}
+              </div>
 
-              {/* Top spots — top 5 visible, rest scrollable */}
-              {topLocs.length > 0 && (
-                <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
-                  <div style={{ fontSize:12, color:"#ccc", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>top spots</div>
-                  <div style={{ maxHeight: topLocs.length > 5 ? 210 : "none", overflowY: topLocs.length > 5 ? "auto" : "visible" }}>
-                    {topLocs.map((l, i) => (
-                      <div key={l.label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom: i < topLocs.length-1 ? "1px solid #1a1a1a" : "none" }}>
-                        <div style={{ fontSize:13, color: i < 3 ? "#f0ede8" : "#bbb" }}>{i===0?"🥇 ":i===1?"🥈 ":i===2?"🥉 ":""}{l.label}</div>
-                        <div style={{ fontSize:13, color:"#ccc", fontWeight:600, flexShrink:0, marginLeft:8 }}>{l.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {topLocs.length > 5 && <div style={{ fontSize:12, color:"#999", marginTop:8, letterSpacing:"0.06em" }}>scroll to see all {topLocs.length} spots</div>}
+              {/* Climbs per session — filterable */}
+              <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ fontSize:12, color:"#ccc", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>climbs per session</div>
+                <div style={{ display:"flex", gap:4, marginBottom:16 }}>
+                  {[["all","#f0ede8"],["outdoor","#4caf50"],["gym","#4a9fd4"]].map(([env, accent]) => (
+                    <button key={env} onClick={() => setClimbsEnvFilter(env)} style={{
+                      flex:1, padding:"7px 0", borderRadius:4, fontSize:10, fontWeight:700, letterSpacing:"0.08em",
+                      cursor:"pointer", fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s",
+                      background: climbsEnvFilter===env ? accent : "#1e1e1e",
+                      color: climbsEnvFilter===env ? (env==="all"?"#0e0e0e":"#fff") : "#555",
+                    }}>{env.toUpperCase()}</button>
+                  ))}
                 </div>
-              )}
+                {(() => {
+                  const val = climbsEnvFilter === "all" ? climbsPerSessionAll : climbsEnvFilter === "outdoor" ? climbsPerSessionOutdoor : climbsPerSessionGym;
+                  return val !== null ? (
+                    <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
+                      <div style={{ fontSize:44, fontWeight:700, color:"#f0ede8", lineHeight:1 }}>{val}</div>
+                      <div style={{ fontSize:13, color:"#aaa" }}>avg · sends, repeats & projects</div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize:13, color:"#555", fontStyle:"italic" }}>need 2+ {climbsEnvFilter} sessions to unlock</div>
+                  );
+                })()}
+              </div>
 
-              {/* Best conditions — tappable for explanation */}
+              {/* Top spots */}
+              <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                <div style={{ fontSize:12, color: topLocs.length > 0 ? "#ccc" : "#555", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:12 }}>top spots</div>
+                {topLocs.length > 0 ? (
+                  <>
+                    <div style={{ maxHeight: topLocs.length > 5 ? 210 : "none", overflowY: topLocs.length > 5 ? "auto" : "visible" }}>
+                      {topLocs.map((l, i) => (
+                        <div key={l.label} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 0", borderBottom: i < topLocs.length-1 ? "1px solid #1a1a1a" : "none" }}>
+                          <div style={{ fontSize:13, color: i < 3 ? "#f0ede8" : "#bbb" }}>{i===0?"🥇 ":i===1?"🥈 ":i===2?"🥉 ":""}{l.label}</div>
+                          <div style={{ fontSize:13, color:"#ccc", fontWeight:600, flexShrink:0, marginLeft:8 }}>{l.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {topLocs.length > 5 && <div style={{ fontSize:12, color:"#555", marginTop:8 }}>scroll to see all {topLocs.length} spots</div>}
+                  </>
+                ) : (
+                  <div style={{ fontSize:13, color:"#555", fontStyle:"italic" }}>log sessions to see your most visited spots</div>
+                )}
+              </div>
+
+              {/* Preferred style */}
               <div style={{ background:"#141414", border:`1px solid ${hasBestConditions?"#3a2a1a":"#2a2a2a"}`, borderRadius:8, padding:"16px 20px", marginBottom:16, cursor: hasBestConditions ? "pointer" : "default" }}
                 onClick={() => hasBestConditions && setShowBestExplain(true)}>
-                <div style={{ fontSize:11, color: hasBestConditions?"#e07820":"#888", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8 }}>preferred style</div>
+                <div style={{ fontSize:11, color: hasBestConditions?"#e07820":"#555", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8 }}>preferred style</div>
                 {hasBestConditions ? (
                   <>
                     <div style={{ fontSize:15, color:"#f0ede8", fontWeight:600, lineHeight:1.6 }}>
@@ -1195,14 +1349,36 @@ export default function App({ user, onSignOut }) {
                     <div style={{ fontSize:14, color:"#ccc", marginTop:6 }}>based on {sent} sends · tap to learn more</div>
                   </>
                 ) : (
-                  <div style={{ fontSize:13, color:"#aaa", fontStyle:"italic" }}>
+                  <div style={{ fontSize:13, color:"#555", fontStyle:"italic" }}>
                     log {Math.max(0, 10 - sent)} more sends to unlock
-                    <div style={{ height:4, background:"#1e1e1e", borderRadius:2, marginTop:8 }}>
+                    <div style={{ height:3, background:"#1e1e1e", borderRadius:2, marginTop:10 }}>
                       <div style={{ width:`${Math.min(100,(sent/10)*100)}%`, height:"100%", background:"#3a2a1a", borderRadius:2 }} />
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* Best climbing day of week */}
+              {dayChartData.length >= 3 && (
+                <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                  <div style={{ fontSize:12, color:"#ccc", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:4 }}>best climbing day</div>
+                  <div style={{ fontSize:12, color:"#777", marginBottom:12 }}>total climbs per day of week, all time</div>
+                  <BarChart data={dayChartData} color="#4caf50" unit=" climbs" />
+                  {bestDay && <div style={{ fontSize:13, color:"#4caf50", marginTop:10, fontWeight:700 }}>{bestDay[0]} · {bestDay[1]} climbs total</div>}
+                </div>
+              )}
+
+              {/* Attempts before send */}
+              {avgAttempts !== null && (
+                <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:16 }}>
+                  <div style={{ fontSize:12, color:"#ccc", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8 }}>attempts before send</div>
+                  <div style={{ display:"flex", alignItems:"baseline", gap:10 }}>
+                    <div style={{ fontSize:44, fontWeight:700, color:"#f0ede8", lineHeight:1 }}>{avgAttempts}</div>
+                    <div style={{ fontSize:13, color:"#aaa" }}>avg · outdoor {insightsDiscipline} projects</div>
+                  </div>
+                </div>
+              )}
+
             </>
           )}
         </div>
