@@ -14,7 +14,7 @@ const DOUBLE_TAP_MS  = 300;
 
 const displayName = (log) => log.name || (log.is_gym ? "Plastic" : "unnamed");
 const gradeSort = (grade, discipline) => discipline === "route" ? (ROUTE_SORT[grade]||0) : (BOULDER_SORT[grade]||0);
-const TAB_SCREENS = ["home","lookup","insights"];
+const TAB_SCREENS = ["home","lookup","insights","settings"];
 
 // ── Grade Slider ────────────────────────────────────────────────────────────
 function GradeSlider({ grades, value, onChange }) {
@@ -410,9 +410,10 @@ function BottomNav({ tab, setTab, hasActiveSession }) {
         { id:"home",     icon:"⌂", label:"home" },
         { id:"lookup",   icon:"⊙", label:"look up" },
         { id:"insights", icon:"◈", label:"insights" },
+        { id:"settings", icon:"⚙", label:"settings" },
       ].map(t => (
         <button key={t.id} onClick={() => setTab(t.id)} style={{ flex:1, padding:"12px 0 10px", background:"none", border:"none", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-          <span style={{ fontSize:22, color: tab===t.id ? "#f0ede8" : "#555", transition:"color 0.12s" }}>{t.icon}</span>
+          <span style={{ fontSize:20, color: tab===t.id ? "#f0ede8" : "#555", transition:"color 0.12s" }}>{t.icon}</span>
           <span style={{ fontSize:9, letterSpacing:"0.1em", color: tab===t.id ? "#f0ede8" : "#444", textTransform:"uppercase" }}>{t.label}</span>
           {t.id==="home" && hasActiveSession && <span style={{ width:5, height:5, borderRadius:"50%", background:"#4caf50", display:"block", marginTop:1 }} />}
         </button>
@@ -545,7 +546,6 @@ export default function App({ user, onSignOut }) {
 
   const showTapHint = () => {
     if (isAddingClimbs) return;
-    setSessionOnboardHint(false);
     setFirstClimbHint(true);
   };
 
@@ -615,6 +615,13 @@ export default function App({ user, onSignOut }) {
 
   const startSession = async () => {
     const loc = location.trim()||"Unknown";
+    // Auto-close any open session first
+    if (activeSession) {
+      await supabase.from('sessions').update({ ended_at: new Date().toISOString() }).eq('id', activeSession.id);
+      const closedLogs = logs.length > 0 ? logs : allClimbs.filter(c => String(c.session_id) === String(activeSession.id));
+      const closed = { ...activeSession, logs: closedLogs, ended_at: new Date().toISOString() };
+      setAllSessions(prev => prev.map(s => s.id === activeSession.id ? closed : s));
+    }
     const { data, error } = await supabase.from('sessions').insert({ user_id: user.id, location: loc, environment, discipline }).select().single();
     if (error || !data) return;
     const newSession = {...data, logs:[]};
@@ -622,7 +629,6 @@ export default function App({ user, onSignOut }) {
     setActiveSession(data); setLogs([]); setClimbName(""); setSelectedGrade(null); setNoteWindowId(null);
     setIsAddingClimbs(false);
     setFirstClimbHint(false);
-    // Show onboard hint every time a new session starts — persists until first climb logged
     setSessionOnboardHint(true);
     setScreen("logging");
   };
@@ -844,7 +850,6 @@ export default function App({ user, onSignOut }) {
   // ── HOME tab ─────────────────────────────────────────────────────────────────
   if (screen === "home") {
     const pastSessions = allSessions.filter(s => s.ended_at);
-    const latestSession = allSessions[0];
     const displaySessions = showAllSessions ? pastSessions : pastSessions.slice(0, 8);
 
     return (
@@ -853,48 +858,39 @@ export default function App({ user, onSignOut }) {
         <div style={{ padding:"52px 24px 200px" }}>
           <div style={S.homeTop}><div style={S.logo}>SUMMIT</div><div style={S.tagline}>your climbing registry</div></div>
 
-          {/* Active session — IN PROGRESS */}
+          {/* Persistent START SESSION button */}
+          <button style={S.startBtn} onClick={startSetup}>START SESSION</button>
+
+          {/* Active session — highlighted in list */}
           {activeSession && (
-            <div style={S.activeCard} onClick={() => setScreen("logging")}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+            <div style={{ marginTop:24 }}>
+              <div style={S.sectionLabel}>in progress</div>
+              <div style={{ ...S.sessionCard, background:"#0d1f0d", border:"1px solid #1e3a1e", borderRadius:8, padding:"14px 16px", marginBottom:2 }}
+                onClick={() => setScreen("logging")}>
                 <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11, color:"#4caf50", letterSpacing:"0.15em", marginBottom:6 }}>● IN PROGRESS</div>
-                  <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{activeSession.location}</div>
-                  <div style={{ fontSize:14, color:"#ddd", marginTop:3, fontWeight:600 }}>{new Date(activeSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
-                  <div style={{ fontSize:13, color:"#bbb", marginTop:3 }}>{activeSession.discipline} · {logs.length} logged · {sends.length} sent{flashes.length>0?` · ${flashes.length} ⚡`:""}
-                  </div>
+                  <div style={{ fontSize:11, color:"#4caf50", letterSpacing:"0.15em", marginBottom:4 }}>● ACTIVE</div>
+                  <div style={S.sessionCardLocation}>{activeSession.location}</div>
+                  <div style={S.sessionCardMeta}>{activeSession.discipline} · {logs.length} logged</div>
                 </div>
-                <button style={S.endBtnSmall} onClick={e => { e.stopPropagation(); endSession(); }}>END</button>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <button style={S.endBtnSmall} onClick={e => { e.stopPropagation(); endSession(); }}>END</button>
+                  <div style={{ fontSize:18, color:"#4caf50" }}>›</div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Last session card — only when no active */}
-          {!activeSession && latestSession && (
-            <div style={S.latestCard} onClick={() => { setViewingSession(latestSession); setScreen("sessionDetail"); }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:11, letterSpacing:"0.15em", marginBottom:6, color:"#aaa" }}>LAST SESSION</div>
-                  <div style={{ fontSize:20, fontWeight:700, color:"#f0ede8" }}>{latestSession.location}</div>
-                  <div style={{ fontSize:14, color:"#ddd", marginTop:3, fontWeight:600 }}>{new Date(latestSession.started_at).toLocaleDateString([],{weekday:"short",month:"short",day:"numeric"})}</div>
-                  <div style={{ fontSize:13, color:"#bbb", marginTop:3 }}>{latestSession.discipline} · {(latestSession.logs||[]).filter(l=>l.outcome==="sent").length} send · {(latestSession.logs||[]).length} climbs</div>
-                </div>
-                <div style={{ fontSize:22, color:"#888", alignSelf:"center" }}>›</div>
-              </div>
-            </div>
-          )}
-
-          {/* Session list */}
+          {/* Past sessions */}
           {loadingSessions ? (
             <div style={{ color:"#999", fontSize:12, letterSpacing:"0.1em", padding:"20px 0" }}>loading...</div>
           ) : pastSessions.length > 0 ? (
-            <>
+            <div style={{ marginTop: activeSession ? 20 : 24 }}>
               <div style={S.sectionLabel}>sessions</div>
-              {displaySessions.filter(s => s.id !== latestSession?.id).map(s => (
+              {displaySessions.map(s => (
                 <div key={s.id} style={S.sessionCard}>
                   <div style={{ flex:1 }} onClick={() => { setViewingSession(s); setScreen("sessionDetail"); }}>
                     <div style={S.sessionCardLocation}>{s.location}</div>
-                    <div style={S.sessionCardMeta}>{s.discipline} · {(s.logs||[]).filter(l=>l.outcome==="sent").length} send · {(s.logs||[]).length} climbs</div>
+                    <div style={S.sessionCardMeta}>{s.discipline} · {(s.logs||[]).filter(l=>l.outcome==="sent").length} sends · {(s.logs||[]).length} climbs</div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                     <div style={S.sessionCardDate}>{new Date(s.started_at).toLocaleDateString([],{month:"short",day:"numeric"})}</div>
@@ -902,12 +898,12 @@ export default function App({ user, onSignOut }) {
                   </div>
                 </div>
               ))}
-              {pastSessions.length > 9 && !showAllSessions && (
+              {pastSessions.length > 8 && !showAllSessions && (
                 <button style={S.lookupMoreBtn} onClick={() => { setTab("lookup"); setScreen("lookup"); }}>
                   look up more ›
                 </button>
               )}
-            </>
+            </div>
           ) : !activeSession && (
             <div style={{ textAlign:"center", padding:"52px 0" }}>
               <div style={{ fontSize:42, marginBottom:12 }}>⬡</div>
@@ -915,12 +911,6 @@ export default function App({ user, onSignOut }) {
               <div style={{ fontSize:13, color:"#aaa", lineHeight:1.6 }}>start your first session to begin tracking</div>
             </div>
           )}
-        </div>
-
-        {/* START SESSION + sign out */}
-        <div style={S.floatingBtn}>
-          {!activeSession && !loadingSessions && <button style={S.startBtn} onClick={startSetup}>START SESSION</button>}
-          <button style={S.signOutBtn} onClick={onSignOut}>sign out</button>
         </div>
 
         <BottomNav tab={tab} setTab={t => { setTab(t); setScreen(t); }} hasActiveSession={!!activeSession} />
@@ -1344,13 +1334,15 @@ export default function App({ user, onSignOut }) {
 
         {/* Step 1: Climb name — always glowing first */}
         <div style={{ padding:"28px 24px 0" }}>
-          <div style={{ fontSize:12, color: isOutdoor ? "#4caf50" : "#bbb", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:10, transition:"color 0.2s" }}>
-            {isOutdoor ? "climb name — required" : "climb name — optional"}
+          <div style={{ fontSize:12, letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:10, transition:"color 0.2s",
+            color: climbName.trim() ? "#777" : "#bbb"
+          }}>
+            climb name{isOutdoor && !climbName.trim() ? <span style={{ color:"#666", fontWeight:400, marginLeft:6, letterSpacing:"0.06em" }}>— required</span> : null}
           </div>
           <input
             style={{ ...S.nameInputBoxed,
-              border: isOutdoor && !climbName.trim() ? "1px solid #4caf50" : isOutdoor && climbName.trim() ? "1px solid #2a2a2a" : "1px solid #2e2e2e",
-              boxShadow: isOutdoor && !climbName.trim() ? "0 0 0 3px rgba(76,175,80,0.10)" : "none",
+              border: isOutdoor && !climbName.trim() ? "1px solid #4caf50" : "1px solid #2a2a2a",
+              boxShadow: isOutdoor && !climbName.trim() ? "0 0 0 3px rgba(76,175,80,0.08)" : "none",
               transition:"border-color 0.2s, box-shadow 0.2s"
             }}
             placeholder={isGym ? "Plastic" : "e.g. Midnight Lightning"}
@@ -1452,12 +1444,40 @@ export default function App({ user, onSignOut }) {
           {vs.logs.map(l => <LogDetailRow key={l.id} log={l} onTap={() => openSheet(l)} />)}
           <button style={{...S.startBtn, marginTop:36}} onClick={() => { setViewingSession(null); setScreen("home"); setTab("home"); loadData(); }}>DONE</button>
         </div>
+  // ── SETTINGS tab ─────────────────────────────────────────────────────────────
+  if (screen === "settings") {
+    return (
+      <div style={S.app}>
+        <div style={{ padding:"52px 24px 160px" }}>
+          <div style={S.homeTop}><div style={S.logo}>SETTINGS</div><div style={S.tagline}>account & preferences</div></div>
+          <div style={{ marginTop:8 }}>
+            <div style={S.sectionLabel}>account</div>
+            <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px", marginBottom:8 }}>
+              <div style={{ fontSize:12, color:"#aaa", letterSpacing:"0.1em", marginBottom:4 }}>SIGNED IN AS</div>
+              <div style={{ fontSize:15, color:"#f0ede8" }}>{user?.email}</div>
+            </div>
+            <button style={{ width:"100%", padding:"14px 0", background:"transparent", border:"1px solid #2a1515", borderRadius:6, color:"#c0392b", fontSize:13, fontWeight:700, letterSpacing:"0.12em", cursor:"pointer", fontFamily:"'DM Mono',monospace", marginTop:8 }} onClick={onSignOut}>
+              sign out
+            </button>
+          </div>
+          <div style={{ marginTop:32 }}>
+            <div style={S.sectionLabel}>about</div>
+            <div style={{ background:"#141414", border:"1px solid #2a2a2a", borderRadius:8, padding:"16px 20px" }}>
+              <div style={{ fontSize:13, color:"#aaa", lineHeight:1.8 }}>
+                <div style={{ display:"flex", justifyContent:"space-between" }}><span>version</span><span style={{ color:"#f0ede8" }}>1.0</span></div>
+                <div style={{ display:"flex", justifyContent:"space-between", marginTop:8 }}><span>built for climbers</span><span style={{ color:"#4caf50" }}>⛰</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <BottomNav tab={tab} setTab={t => { setTab(t); setScreen(t); }} hasActiveSession={!!activeSession} />
       </div>
     );
   }
-}
 
-const S = {
+  // ── FALLBACK ──────────────────────────────────────────────────────────────────
+  return null;
+}
   app:{ fontFamily:"'DM Mono','Courier New',monospace", background:"#0e0e0e", minHeight:"100vh", color:"#f0ede8", maxWidth:390, margin:"0 auto", position:"relative", overflowX:"hidden" },
   homeTop:{ marginBottom:28 },
   logo:{ fontSize:36, fontWeight:700, letterSpacing:"0.15em" },
