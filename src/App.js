@@ -1444,6 +1444,10 @@ export default function App({ user, onSignOut }) {
           {vs.logs.map(l => <LogDetailRow key={l.id} log={l} onTap={() => openSheet(l)} />)}
           <button style={{...S.startBtn, marginTop:36}} onClick={() => { setViewingSession(null); setScreen("home"); setTab("home"); loadData(); }}>DONE</button>
         </div>
+      </div>
+    );
+  }
+
   // ── SETTINGS tab ─────────────────────────────────────────────────────────────
   if (screen === "settings") {
     return (
@@ -1478,6 +1482,8 @@ export default function App({ user, onSignOut }) {
   // ── FALLBACK ──────────────────────────────────────────────────────────────────
   return null;
 }
+
+const S = {
   app:{ fontFamily:"'DM Mono','Courier New',monospace", background:"#0e0e0e", minHeight:"100vh", color:"#f0ede8", maxWidth:390, margin:"0 auto", position:"relative", overflowX:"hidden" },
   homeTop:{ marginBottom:28 },
   logo:{ fontSize:36, fontWeight:700, letterSpacing:"0.15em" },
