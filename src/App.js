@@ -403,18 +403,51 @@ function BarChart({ data, color = "#f0ede8", unit = "" }) {
 }
 
 // ── Bottom nav ────────────────────────────────────────────────────────────────
+function NavIcon({ id, active }) {
+  const c = active ? "#f0ede8" : "#888";
+  if (id === "home") return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <path d="M11 3L3 9.5V19h5.5v-5h5v5H19V9.5L11 3Z" stroke={c} strokeWidth="1.5" strokeLinejoin="round" fill={active ? c : "none"} fillOpacity={active ? 0.15 : 0} />
+    </svg>
+  );
+  if (id === "lookup") return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      {/* Eye outline */}
+      <path d="M11 6C7 6 3.5 11 3.5 11C3.5 11 7 16 11 16C15 16 18.5 11 18.5 11C18.5 11 15 6 11 6Z" stroke={c} strokeWidth="1.4" strokeLinejoin="round" />
+      {/* Cat slit pupil */}
+      <ellipse cx="11" cy="11" rx="1.4" ry="3" fill={c} />
+      {/* Iris ring */}
+      <ellipse cx="11" cy="11" rx="3.2" ry="3.2" stroke={c} strokeWidth="1" fill="none" />
+    </svg>
+  );
+  if (id === "insights") return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="3" y="13" width="3.5" height="6" rx="1" fill={c} opacity={active ? 1 : 0.9} />
+      <rect x="9.25" y="8" width="3.5" height="11" rx="1" fill={c} opacity={active ? 1 : 0.9} />
+      <rect x="15.5" y="4" width="3.5" height="15" rx="1" fill={c} opacity={active ? 1 : 0.9} />
+    </svg>
+  );
+  if (id === "settings") return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="11" r="2.8" stroke={c} strokeWidth="1.4" />
+      <path d="M11 2.5v2M11 17.5v2M2.5 11h2M17.5 11h2M4.7 4.7l1.4 1.4M15.9 15.9l1.4 1.4M4.7 17.3l1.4-1.4M15.9 6.1l1.4-1.4" stroke={c} strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+  return null;
+}
+
 function BottomNav({ tab, setTab, hasActiveSession }) {
   return (
     <div style={{ position:"fixed", bottom:0, left:"50%", transform:"translateX(-50%)", width:"100%", maxWidth:390, background:"#111", borderTop:"1px solid #2a2a2a", display:"flex", zIndex:60, paddingBottom:"env(safe-area-inset-bottom)" }}>
       {[
-        { id:"home",     icon:"⌂", label:"home" },
-        { id:"lookup",   icon:"⊙", label:"look up" },
-        { id:"insights", icon:"◈", label:"insights" },
-        { id:"settings", icon:"⚙", label:"settings" },
+        { id:"home",     label:"home" },
+        { id:"lookup",   label:"look up" },
+        { id:"insights", label:"insights" },
+        { id:"settings", label:"settings" },
       ].map(t => (
         <button key={t.id} onClick={() => setTab(t.id)} style={{ flex:1, padding:"12px 0 10px", background:"none", border:"none", cursor:"pointer", fontFamily:"'DM Mono',monospace", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-          <span style={{ fontSize:20, color: tab===t.id ? "#f0ede8" : "#555", transition:"color 0.12s" }}>{t.icon}</span>
-          <span style={{ fontSize:9, letterSpacing:"0.1em", color: tab===t.id ? "#f0ede8" : "#444", textTransform:"uppercase" }}>{t.label}</span>
+          <NavIcon id={t.id} active={tab===t.id} />
+          <span style={{ fontSize:9, letterSpacing:"0.1em", color: tab===t.id ? "#f0ede8" : "#777", textTransform:"uppercase" }}>{t.label}</span>
           {t.id==="home" && hasActiveSession && <span style={{ width:5, height:5, borderRadius:"50%", background:"#4caf50", display:"block", marginTop:1 }} />}
         </button>
       ))}
