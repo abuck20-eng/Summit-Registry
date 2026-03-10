@@ -151,6 +151,9 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
     <div style={S.overlay} onClick={onDismiss}>
       <div style={{ ...S.sheet, position:"relative" }} onClick={e => e.stopPropagation()}>
         <div style={S.sheetHandle} />
+        <div style={{ display:"flex", alignItems:"center", marginBottom:16 }}>
+          <button onClick={onDismiss} style={{ background:"none", border:"none", color:"#888", fontSize:13, cursor:"pointer", fontFamily:"'DM Mono',monospace", padding:"0 0 0 2px", letterSpacing:"0.06em" }}>← back</button>
+        </div>
         <div style={{ display:"flex", gap:8, marginBottom:20 }}>
           {["sent","project","repeat"].map(o => (
             <button key={o} onClick={() => setOutcome(o)} style={{
@@ -489,7 +492,11 @@ export default function App({ user, onSignOut }) {
   const [editingNote, setEditingNote] = useState(false);
   const [localNote, setLocalNote] = useState("");
   const [lookupQuery, setLookupQuery] = useState("");
-  const [lookupMode, setLookupMode] = useState("sessions"); // "sessions" | "climbs"
+  const [lookupMode, setLookupMode] = useState("sessions");
+  const [climbDiscipline, setClimbDiscipline] = useState("boulder");
+  const [climbLocationQuery, setClimbLocationQuery] = useState("");
+  const [climbGradeFilters, setClimbGradeFilters] = useState([]);
+  const toggleClimbGrade = (g) => setClimbGradeFilters(prev => prev.includes(g) ? prev.filter(x=>x!==g) : [...prev, g]);
   const [showAllSessions, setShowAllSessions] = useState(false);
   const [confirmEndEmpty, setConfirmEndEmpty] = useState(false);
 
@@ -719,10 +726,24 @@ export default function App({ user, onSignOut }) {
   }, [lookupQuery, allSessions]);
 
   const filteredClimbs = useMemo(() => {
-    if (!lookupQuery.trim()) return [];
-    const q = lookupQuery.toLowerCase();
-    return allClimbs.filter(c => (c.name||"").toLowerCase().includes(q)).slice(0, 30);
-  }, [lookupQuery, allClimbs]);
+    const gradeList = climbDiscipline === "boulder" ? BOULDER_GRADES : ROUTE_GRADES;
+    let list = allClimbs.filter(c => gradeList.includes(c.grade));
+    if (climbLocationQuery.trim()) {
+      const q = climbLocationQuery.toLowerCase();
+      list = list.filter(c => {
+        const sess = allSessions.find(s => s.id === c.session_id);
+        return (sess?.location || "").toLowerCase().includes(q);
+      });
+    }
+    if (climbGradeFilters.length > 0) {
+      list = list.filter(c => climbGradeFilters.includes(c.grade));
+    }
+    if (lookupQuery.trim()) {
+      const q = lookupQuery.toLowerCase();
+      list = list.filter(c => (c.name||"").toLowerCase().includes(q));
+    }
+    return list.slice(0, 50);
+  }, [lookupQuery, climbLocationQuery, climbDiscipline, climbGradeFilters, allClimbs, allSessions]);
 
   // ── Open projects logic ─────────────────────────────────────────────────────
   // fingerprint = name (lowercase) + grade + location — outdoor named climbs only
@@ -967,7 +988,7 @@ export default function App({ user, onSignOut }) {
       <div style={S.app}>
         <Sheet /><DeleteSessionModal />{confirmEndOverlay}
         <div style={{ padding:"52px 24px 200px" }}>
-          <div style={S.homeTop}><div style={S.logo}>SUMMIT</div><div style={S.tagline}>your climbing registry</div></div>
+          <div style={S.homeTop}><div style={S.logo}>SESSIONS</div><div style={S.tagline}>your climbing registry</div></div>
 
           {/* Persistent START SESSION button */}
           <button style={S.startBtn} onClick={startSetup}>START SESSION</button>
@@ -1035,7 +1056,7 @@ export default function App({ user, onSignOut }) {
       <div style={S.app}>
         <Sheet /><DeleteSessionModal />{confirmEndOverlay}
         <div style={{ padding:"52px 24px 160px" }}>
-          <div style={S.homeTop}><div style={S.logo}>LOOK UP</div><div style={S.tagline}>find sessions & climbs</div></div>
+          <div style={S.homeTop}><div style={S.logo}>LOOK UP</div><div style={S.tagline}>sessions · climbs · projects</div></div>
 
           {/* Mode toggle — three modes */}
           <div style={{ display:"flex", gap:6, marginBottom:20 }}>
@@ -1049,15 +1070,64 @@ export default function App({ user, onSignOut }) {
             ))}
           </div>
 
-          {/* Search input — hidden for projects mode (uses filter chips instead) */}
-          {lookupMode !== "projects" && (
+          {/* Search input — sessions mode only */}
+          {lookupMode === "sessions" && (
             <input
               style={{ ...S.nameInputBoxed, marginBottom:20 }}
-              placeholder={lookupMode === "sessions" ? "search by location..." : "search by climb name..."}
+              placeholder="search by location..."
               value={lookupQuery}
               onChange={e => setLookupQuery(e.target.value)}
               autoCapitalize="off"
             />
+          )}
+
+          {/* CLIMBS filters */}
+          {lookupMode === "climbs" && (
+            <div style={{ marginBottom:20 }}>
+              {/* Discipline toggle */}
+              <div style={{ display:"flex", gap:4, marginBottom:12, background:"#141414", borderRadius:8, padding:4 }}>
+                {["boulder","route"].map(d => (
+                  <button key={d} onClick={() => { setClimbDiscipline(d); setClimbGradeFilters([]); }} style={{
+                    flex:1, padding:"9px 0", borderRadius:6, fontSize:11, fontWeight:700, letterSpacing:"0.08em",
+                    cursor:"pointer", fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s",
+                    background: climbDiscipline===d ? "#f0ede8" : "transparent",
+                    color: climbDiscipline===d ? "#0e0e0e" : "#555",
+                  }}>{d.toUpperCase()}</button>
+                ))}
+              </div>
+              {/* Location search */}
+              <input
+                style={{ ...S.nameInputBoxed, marginBottom:12 }}
+                placeholder="filter by area..."
+                value={climbLocationQuery}
+                onChange={e => setClimbLocationQuery(e.target.value)}
+                autoCapitalize="off"
+              />
+              {/* Name search */}
+              <input
+                style={{ ...S.nameInputBoxed, marginBottom:12 }}
+                placeholder="search by climb name..."
+                value={lookupQuery}
+                onChange={e => setLookupQuery(e.target.value)}
+                autoCapitalize="off"
+              />
+              {/* Grade multi-select */}
+              <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+                {(climbDiscipline === "boulder" ? BOULDER_GRADES : ROUTE_GRADES).map(g => (
+                  <button key={g} onClick={() => toggleClimbGrade(g)} style={{
+                    padding:"5px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer",
+                    fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.1s", flexShrink:0,
+                    background: climbGradeFilters.includes(g) ? "#f0ede8" : "#1e1e1e",
+                    color: climbGradeFilters.includes(g) ? "#0e0e0e" : "#777",
+                  }}>{g.startsWith("5.") ? g.slice(2) : g}</button>
+                ))}
+              </div>
+              {climbGradeFilters.length > 0 && (
+                <button onClick={() => setClimbGradeFilters([])} style={{ background:"none", border:"none", color:"#666", fontSize:11, cursor:"pointer", fontFamily:"'DM Mono',monospace", marginTop:8, padding:0, letterSpacing:"0.06em" }}>
+                  clear grades ✕
+                </button>
+              )}
+            </div>
           )}
 
           {/* SESSIONS */}
@@ -1087,15 +1157,24 @@ export default function App({ user, onSignOut }) {
           {/* CLIMBS */}
           {lookupMode === "climbs" && (
             <>
-              {!lookupQuery && <div style={{ color:"#999", fontSize:13, padding:"20px 0" }}>type a climb name to search</div>}
-              {lookupQuery && filteredClimbs.length === 0 && <div style={{ color:"#999", fontSize:13, padding:"20px 0" }}>no climbs named "{lookupQuery}"</div>}
+              {filteredClimbs.length === 0 && (
+                <div style={{ color:"#999", fontSize:13, padding:"20px 0" }}>
+                  {climbGradeFilters.length > 0 || climbLocationQuery || lookupQuery
+                    ? "no climbs match those filters"
+                    : `all your ${climbDiscipline} climbs · filter above to narrow down`}
+                </div>
+              )}
               {filteredClimbs.map(c => {
                 const hasTags = (c.angles||[]).length > 0 || (c.styles||[]).length > 0;
+                const sess = allSessions.find(s => s.id === c.session_id);
                 return (
                   <div key={c.id} style={S.detailRow} onClick={() => openSheet(c)}>
                     <div style={S.detailTop}>
                       <OutcomeIcon outcome={c.outcome} firstGo={c.first_go} size={26} />
-                      <span style={S.detailName}>{displayName(c)}</span>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <span style={S.detailName}>{displayName(c)}</span>
+                        {sess && <div style={{ fontSize:11, color:"#666", marginTop:2 }}>{sess.location}</div>}
+                      </div>
                       <span style={S.detailGrade}>{c.grade}</span>
                     </div>
                     {hasTags && <div style={S.tagPills}>{[...(c.angles||[]),...(c.styles||[])].map(t=><span key={t} style={S.pill}>{t}</span>)}</div>}
@@ -1103,79 +1182,74 @@ export default function App({ user, onSignOut }) {
                   </div>
                 );
               })}
+              {filteredClimbs.length === 50 && <div style={{ fontSize:12, color:"#666", marginTop:12, textAlign:"center" }}>showing 50 results · filter to narrow down</div>}
             </>
           )}
 
           {/* OPEN PROJECTS */}
           {lookupMode === "projects" && (
             <>
-              {/* Area filter chips */}
-              {projectAreas.length > 0 && (
-                <div style={{ marginBottom:12 }}>
-                  <div style={{ fontSize:11, color:"#aaa", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8 }}>filter by area</div>
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                    {projectAreas.map(area => (
-                      <button key={area} onClick={() => setProjectFilterArea(projectFilterArea === area ? "" : area)} style={{
-                        padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
-                        fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s",
-                        background: projectFilterArea === area ? COLOR_PROJECT : "#1e1e1e",
-                        color: projectFilterArea === area ? "#fff" : "#aaa",
-                      }}>{area}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Grade filter chips */}
-              {projectGrades.length > 0 && (
-                <div style={{ marginBottom:20 }}>
-                  <div style={{ fontSize:11, color:"#aaa", letterSpacing:"0.15em", textTransform:"uppercase", marginBottom:8 }}>filter by grade</div>
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                    {projectGrades.map(g => (
-                      <button key={g} onClick={() => setProjectFilterGrade(projectFilterGrade === g ? "" : g)} style={{
-                        padding:"6px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
-                        fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s",
-                        background: projectFilterGrade === g ? "#f0ede8" : "#1e1e1e",
-                        color: projectFilterGrade === g ? "#0e0e0e" : "#aaa",
-                      }}>{g}</button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {openProjects.length === 0 && (
+              {openProjects.length === 0 ? (
                 <div style={{ textAlign:"center", padding:"40px 0" }}>
                   <div style={{ fontSize:36, marginBottom:12 }}>🐍</div>
                   <div style={{ fontSize:16, fontWeight:700, color:"#f0ede8", marginBottom:6 }}>no open projects</div>
                   <div style={{ fontSize:13, color:"#aaa", lineHeight:1.6 }}>log outdoor climbs as PROJECT and they'll appear here until you send them</div>
                 </div>
-              )}
-
-              {openProjects.length > 0 && filteredProjects.length === 0 && (
-                <div style={{ color:"#999", fontSize:13, padding:"20px 0" }}>no projects match those filters</div>
-              )}
-
-              {filteredProjects.map((p, i) => (
-                <div key={i} style={{ ...S.detailRow }}>
-                  <div style={S.detailTop}>
-                    <OutcomeIcon outcome="project" size={26} />
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={S.detailName}>{p.name}</div>
-                      <div style={{ fontSize:12, color:"#aaa", marginTop:2 }}>
-                        {p.location} · {p.projectLogs.length} {p.projectLogs.length === 1 ? "attempt" : "attempts"}
-                        {" · last "}{p.lastAttempt.toLocaleDateString([],{month:"short",day:"numeric"})}
+              ) : (
+                <>
+                  {/* Area filter */}
+                  {projectAreas.length > 1 && (
+                    <div style={{ marginBottom:12 }}>
+                      <div style={{ fontSize:11, color:"#777", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8 }}>area</div>
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                        {projectAreas.map(area => (
+                          <button key={area} onClick={() => setProjectFilterArea(projectFilterArea === area ? "" : area)} style={{
+                            padding:"5px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+                            fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s",
+                            background: projectFilterArea === area ? COLOR_PROJECT : "#1e1e1e",
+                            color: projectFilterArea === area ? "#fff" : "#888",
+                          }}>{area}</button>
+                        ))}
                       </div>
                     </div>
-                    <span style={S.detailGrade}>{p.grade}</span>
+                  )}
+                  {/* Grade filter */}
+                  {projectGrades.length > 1 && (
+                    <div style={{ marginBottom:20 }}>
+                      <div style={{ fontSize:11, color:"#777", letterSpacing:"0.12em", textTransform:"uppercase", marginBottom:8 }}>grade</div>
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                        {projectGrades.map(g => (
+                          <button key={g} onClick={() => setProjectFilterGrade(projectFilterGrade === g ? "" : g)} style={{
+                            padding:"5px 12px", borderRadius:20, fontSize:12, fontWeight:600, cursor:"pointer",
+                            fontFamily:"'DM Mono',monospace", border:"none", transition:"all 0.12s",
+                            background: projectFilterGrade === g ? "#f0ede8" : "#1e1e1e",
+                            color: projectFilterGrade === g ? "#0e0e0e" : "#888",
+                          }}>{g}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {openProjects.length > 0 && filteredProjects.length === 0 && (
+                    <div style={{ color:"#999", fontSize:13, padding:"20px 0" }}>no projects match those filters</div>
+                  )}
+                  {filteredProjects.map((p, i) => (
+                    <div key={i} style={S.detailRow}>
+                      <div style={S.detailTop}>
+                        <OutcomeIcon outcome="project" size={26} />
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={S.detailName}>{p.name}</div>
+                          <div style={{ fontSize:12, color:"#aaa", marginTop:2 }}>
+                            {p.location} · {p.projectLogs.length} {p.projectLogs.length === 1 ? "attempt" : "attempts"} · last {p.lastAttempt.toLocaleDateString([],{month:"short",day:"numeric"})}
+                          </div>
+                        </div>
+                        <span style={S.detailGrade}>{p.grade}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ fontSize:12, color:"#666", marginTop:16, textAlign:"center" }}>
+                    {filteredProjects.length} open {filteredProjects.length === 1 ? "project" : "projects"}{projectFilterArea || projectFilterGrade ? " · filtered" : ""}
                   </div>
-                </div>
-              ))}
-
-              {filteredProjects.length > 0 && (
-                <div style={{ fontSize:12, color:"#777", marginTop:16, textAlign:"center", lineHeight:1.6 }}>
-                  {filteredProjects.length} open {filteredProjects.length === 1 ? "project" : "projects"}
-                  {projectFilterArea || projectFilterGrade ? " matching filters" : ""}
-                </div>
+                </>
               )}
             </>
           )}
