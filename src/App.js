@@ -193,7 +193,7 @@ function DetailSheet({ entry, discipline, onSave, onDismiss, onDelete, saving })
         </div>
         {outcome === "sent" && (
           <div style={S.tagSection}>
-            <div style={S.chipRow}><Chip label={firstGo ? "⚡ First go" : "⚡ First go?"} selected={firstGo} onToggle={() => setFirstGo(p=>!p)} accent="#a06010" /></div>
+            <div style={S.chipRow}><Chip label="⚡ Flash" selected={firstGo} onToggle={() => setFirstGo(p=>!p)} accent="#a06010" /></div>
           </div>
         )}
         <div style={S.tagSection}>
@@ -1555,7 +1555,7 @@ export default function App({ user, onSignOut }) {
           <div style={S.statsRow}>
             <div style={S.statBox}><div style={S.statNum}>{(s.logs||[]).length}</div><div style={S.statLabel}>climbs</div></div>
             <div style={S.statBox}><div style={S.statNum}>{(s.logs||[]).filter(l=>l.outcome==="sent").length}</div><div style={S.statLabel}>send</div></div>
-            <div style={S.statBox}><div style={S.statNum}>{sf.length}</div><div style={S.statLabel}>⚡ first go</div></div>
+            <div style={S.statBox}><div style={S.statNum}>{sf.length}</div><div style={S.statLabel}>⚡ flash</div></div>
           </div>
 
           <button style={S.addClimbBtn} onClick={() => addClimbsTo(s)}>+ add climb</button>
@@ -1717,7 +1717,7 @@ export default function App({ user, onSignOut }) {
           <div style={S.statsRow}>
             <div style={S.statBox}><div style={S.statNum}>{vs.logs.length}</div><div style={S.statLabel}>climbs</div></div>
             <div style={S.statBox}><div style={S.statNum}>{vSends.length}</div><div style={S.statLabel}>send</div></div>
-            <div style={S.statBox}><div style={S.statNum}>{vFlashes.length}</div><div style={S.statLabel}>⚡ first go</div></div>
+            <div style={S.statBox}><div style={S.statNum}>{vFlashes.length}</div><div style={S.statLabel}>⚡ flash</div></div>
           </div>
           <div style={{ display:"flex", gap:8, marginBottom:28, flexWrap:"wrap" }}>
             {hardest && (
